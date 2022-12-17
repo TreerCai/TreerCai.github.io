@@ -16,12 +16,12 @@
   <meta name="author" content="Treer Cai">
   <meta name="keywords" content="">
   
-    <meta name="description" content="G1GC算法 G1GC 是什么？ 一些基本概念 实时性 G1GC 有什么特点？   G1GC 的堆结构是什么样的？ G1GC 的执行过程是什么样的？ 并发标记 并发标记是什么 标记位图 执行步骤 步骤 1——初始标记阶段 步骤 2——并发标记阶段 SATB   步骤 3——最终标记阶段 步骤 4——存活对象计数 步骤 5——收尾工作 转移效率 并发标记总结   转移 转移是什么？ 转移专用记忆集合">
+    <meta name="description" content="前言G1GC(Garbage First Garbage Collection)(简称G1)概念在04年的一篇论文就已经被提出，在JDK 6 Update 14 发布时推出了G1的测试版，并在其后经过不断地完善，最终在12年的 JDK7 Update 4正式发布，直到 JDK9 时被正式扶正，替代了原来的 Parallel Scavenge 和 Parallel Old的组合，成为Hotspot">
 <meta property="og:type" content="article">
 <meta property="og:title" content="G1GC算法篇">
-<meta property="og:url" content="http://example.com/2022/12/13/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/index.html">
+<meta property="og:url" content="http://example.com/2022/12/13/G1GC%E7%AE%97%E6%B3%95%E7%AF%87%20copy/index.html">
 <meta property="og:site_name" content="TreerCai&#39;s blog">
-<meta property="og:description" content="G1GC算法 G1GC 是什么？ 一些基本概念 实时性 G1GC 有什么特点？   G1GC 的堆结构是什么样的？ G1GC 的执行过程是什么样的？ 并发标记 并发标记是什么 标记位图 执行步骤 步骤 1——初始标记阶段 步骤 2——并发标记阶段 SATB   步骤 3——最终标记阶段 步骤 4——存活对象计数 步骤 5——收尾工作 转移效率 并发标记总结   转移 转移是什么？ 转移专用记忆集合">
+<meta property="og:description" content="前言G1GC(Garbage First Garbage Collection)(简称G1)概念在04年的一篇论文就已经被提出，在JDK 6 Update 14 发布时推出了G1的测试版，并在其后经过不断地完善，最终在12年的 JDK7 Update 4正式发布，直到 JDK9 时被正式扶正，替代了原来的 Parallel Scavenge 和 Parallel Old的组合，成为Hotspot">
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="http://yano.oss-cn-beijing.aliyuncs.com/blog/20210307224725.png">
 <meta property="og:image" content="http://yano.oss-cn-beijing.aliyuncs.com/blog/20210307225026.png">
@@ -42,7 +42,7 @@
 <meta property="og:image" content="http://yano.oss-cn-beijing.aliyuncs.com/blog/20210309102244.png">
 <meta property="og:image" content="http://yano.oss-cn-beijing.aliyuncs.com/blog/20210309103635.png">
 <meta property="article:published_time" content="2022-12-13T03:15:48.000Z">
-<meta property="article:modified_time" content="2022-12-14T05:48:26.808Z">
+<meta property="article:modified_time" content="2022-12-14T08:47:03.231Z">
 <meta property="article:author" content="Treer Cai">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="http://yano.oss-cn-beijing.aliyuncs.com/blog/20210307224725.png">
@@ -291,66 +291,8 @@
             
               <div class="markdown-body">
                 
-                <h1 id="G1GC算法"><a href="#G1GC算法" class="headerlink" title="G1GC算法"></a>G1GC算法</h1><ul>
-<li><a href="#g1gc-%E6%98%AF%E4%BB%80%E4%B9%88">G1GC 是什么？</a></li>
-<li><a href="#%E4%B8%80%E4%BA%9B%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5">一些基本概念</a><ul>
-<li><a href="#%E5%AE%9E%E6%97%B6%E6%80%A7">实时性</a></li>
-<li><a href="#g1gc-%E6%9C%89%E4%BB%80%E4%B9%88%E7%89%B9%E7%82%B9">G1GC 有什么特点？</a></li>
-</ul>
-</li>
-<li><a href="#g1gc-%E7%9A%84%E5%A0%86%E7%BB%93%E6%9E%84%E6%98%AF%E4%BB%80%E4%B9%88%E6%A0%B7%E7%9A%84">G1GC 的堆结构是什么样的？</a></li>
-<li><a href="#g1gc-%E7%9A%84%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B%E6%98%AF%E4%BB%80%E4%B9%88%E6%A0%B7%E7%9A%84">G1GC 的执行过程是什么样的？</a></li>
-<li><a href="#%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0">并发标记</a><ul>
-<li><a href="#%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E6%98%AF%E4%BB%80%E4%B9%88">并发标记是什么</a></li>
-<li><a href="#%E6%A0%87%E8%AE%B0%E4%BD%8D%E5%9B%BE">标记位图</a></li>
-<li><a href="#%E6%89%A7%E8%A1%8C%E6%AD%A5%E9%AA%A4">执行步骤</a></li>
-<li><a href="#%E6%AD%A5%E9%AA%A4-1%E5%88%9D%E5%A7%8B%E6%A0%87%E8%AE%B0%E9%98%B6%E6%AE%B5">步骤 1——初始标记阶段</a></li>
-<li><a href="#%E6%AD%A5%E9%AA%A4-2%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E9%98%B6%E6%AE%B5">步骤 2——并发标记阶段</a><ul>
-<li><a href="#satb">SATB</a></li>
-</ul>
-</li>
-<li><a href="#%E6%AD%A5%E9%AA%A4-3%E6%9C%80%E7%BB%88%E6%A0%87%E8%AE%B0%E9%98%B6%E6%AE%B5">步骤 3——最终标记阶段</a></li>
-<li><a href="#%E6%AD%A5%E9%AA%A4-4%E5%AD%98%E6%B4%BB%E5%AF%B9%E8%B1%A1%E8%AE%A1%E6%95%B0">步骤 4——存活对象计数</a></li>
-<li><a href="#%E6%AD%A5%E9%AA%A4-5%E6%94%B6%E5%B0%BE%E5%B7%A5%E4%BD%9C">步骤 5——收尾工作</a></li>
-<li><a href="#%E8%BD%AC%E7%A7%BB%E6%95%88%E7%8E%87">转移效率</a></li>
-<li><a href="#%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E6%80%BB%E7%BB%93">并发标记总结</a></li>
-</ul>
-</li>
-<li><a href="#%E8%BD%AC%E7%A7%BB">转移</a><ul>
-<li><a href="#%E8%BD%AC%E7%A7%BB%E6%98%AF%E4%BB%80%E4%B9%88">转移是什么？</a></li>
-<li><a href="#%E8%BD%AC%E7%A7%BB%E4%B8%93%E7%94%A8%E8%AE%B0%E5%BF%86%E9%9B%86%E5%90%88">转移专用记忆集合</a><ul>
-<li><a href="#%E5%8D%A1%E8%A1%A8">卡表</a></li>
-<li><a href="#%E8%BD%AC%E7%A7%BB%E4%B8%93%E7%94%A8%E8%AE%B0%E5%BF%86%E9%9B%86%E5%90%88%E7%9A%84%E6%9E%84%E9%80%A0">转移专用记忆集合的构造</a></li>
-</ul>
-</li>
-<li><a href="#%E8%BD%AC%E7%A7%BB%E4%B8%93%E7%94%A8%E5%86%99%E5%B1%8F%E9%9A%9C">转移专用写屏障</a></li>
-<li><a href="#%E8%BD%AC%E7%A7%BB%E4%B8%93%E7%94%A8%E8%AE%B0%E5%BF%86%E9%9B%86%E5%90%88%E7%BB%B4%E6%8A%A4%E7%BA%BF%E7%A8%8B">转移专用记忆集合维护线程</a></li>
-<li><a href="#%E7%83%AD%E5%8D%A1%E7%89%87">热卡片</a></li>
-<li><a href="#%E8%BD%AC%E7%A7%BB%E7%9A%84%E6%89%A7%E8%A1%8C%E6%AD%A5%E9%AA%A4">转移的执行步骤</a></li>
-<li><a href="#%E6%AD%A5%E9%AA%A4-1%E9%80%89%E6%8B%A9%E5%9B%9E%E6%94%B6%E9%9B%86%E5%90%88">步骤 1——选择回收集合</a></li>
-<li><a href="#%E6%AD%A5%E9%AA%A4-2%E6%A0%B9%E8%BD%AC%E7%A7%BB">步骤 2——根转移</a></li>
-<li><a href="#%E6%AD%A5%E9%AA%A4-3%E8%BD%AC%E7%A7%BB">步骤 3——转移</a></li>
-</ul>
-</li>
-<li><a href="#%E5%88%86%E4%BB%A3-g1gc-%E6%A8%A1%E5%BC%8F">分代 G1GC 模式</a><ul>
-<li><a href="#%E4%B8%A4%E7%A7%8D-gc-%E7%9A%84%E5%8C%BA%E5%88%AB">两种 GC 的区别</a></li>
-<li><a href="#%E6%96%B0%E7%94%9F%E4%BB%A3%E5%8C%BA%E5%9F%9F">新生代区域</a></li>
-<li><a href="#%E5%88%86%E4%BB%A3%E5%AF%B9%E8%B1%A1%E8%BD%AC%E7%A7%BB">分代对象转移</a></li>
-<li><a href="#%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B">执行过程</a></li>
-<li><a href="#gc-%E7%9A%84%E5%88%87%E6%8D%A2">GC 的切换</a></li>
-<li><a href="#gc-%E7%9A%84%E6%89%A7%E8%A1%8C%E6%97%B6%E6%9C%BA">GC 的执行时机</a></li>
-</ul>
-</li>
-<li><a href="#g1-%E7%AE%97%E6%B3%95%E6%80%BB%E7%BB%93">G1 算法总结</a><ul>
-<li><a href="#%E5%85%B3%E7%B3%BB%E5%9B%BE">关系图</a></li>
-<li><a href="#%E4%BC%98%E7%82%B9">优点</a></li>
-<li><a href="#%E7%BC%BA%E7%82%B9">缺点</a></li>
-</ul>
-</li>
-<li><a href="#%E5%8F%82%E8%80%83">参考</a></li>
-<li><a href="#github-leetcode-%E9%A1%B9%E7%9B%AE">GitHub LeetCode 项目</a></li>
-</ul>
-<h1 id="G1GC-是什么？"><a href="#G1GC-是什么？" class="headerlink" title="G1GC 是什么？"></a>G1GC 是什么？</h1><p>G1GC（Garbage First Garbage Collection）是在 OpenJDK 7 中引入的 GC 算法，其最大的特点就是非常重视<code>实时性</code>。</p>
+                <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>G1GC(Garbage First Garbage Collection)(简称G1)概念在04年的一篇论文就已经被提出，在JDK 6 Update 14 发布时推出了G1的测试版，并在其后经过不断地完善，最终在12年的 JDK7 Update 4正式发布，直到 JDK9 时被正式扶正，替代了原来的 Parallel Scavenge 和 Parallel Old的组合，成为Hotspot 在Server端的默认垃圾回收器。</p>
+<p>本文将通过对G1的整个回收周期的算法原理进行解读，如有偏差，请指正。</p>
 <h1 id="一些基本概念"><a href="#一些基本概念" class="headerlink" title="一些基本概念"></a>一些基本概念</h1><h2 id="实时性"><a href="#实时性" class="headerlink" title="实时性"></a>实时性</h2><p>程序具有实时性，是指程序必须能在最后期限（deadline）之前完成，其中最后期限可以自由指定。实时性分为两种：</p>
 <ul>
 <li><code>硬实时性</code>（hard real-time）：每次处理的时间都不能超过最后期限，比如医疗机器人控制系统、航空管制系统。</li>
@@ -545,7 +487,7 @@
 <li>被限定为“搭载多核处理器、拥有大容量内存的机器”，适用受限。</li>
 <li>尽管区域内不会出现碎片化，但是会出现以区域为单位（整个堆）的碎片化。</li>
 </ul>
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p>《深入 Java 虚拟机-JVM G1GC 的算法与实现》</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p>《深入 Java 虚拟机-JVM G1GC 的算法与实现》中村成洋&#x2F;著 吴炎昌 杨文轩&#x2F;译 1-6章<br>《深入探索JVM垃圾回收》彭成寒 4-6章<br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/463179141">关于 G1 GC 的一些研究</a><br><a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/part-1-introduction-g1-garbage-collector">Part 1: Introduction to the G1 Garbage Collector</a><br><a target="_blank" rel="noopener" href="https://www.redhat.com/en/blog/collecting-and-reading-g1-garbage-collector-logs-part-2?source=author&term=22991">Collecting and reading G1 garbage collector logs - part 2</a></p>
 
                 
               </div>
@@ -564,7 +506,7 @@
   <div class="license-box my-3">
     <div class="license-title">
       <div>G1GC算法篇</div>
-      <div>http://example.com/2022/12/13/G1GC算法篇/</div>
+      <div>http://example.com/2022/12/13/G1GC算法篇 copy/</div>
     </div>
     <div class="license-meta">
       
@@ -607,6 +549,12 @@
                 <div class="post-prevnext my-3">
                   <article class="post-prev col-6">
                     
+                    
+                      <a href="/2022/12/15/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/" title="G1GC算法篇">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">G1GC算法篇</span>
+                        <span class="visible-mobile">Previous</span>
+                      </a>
                     
                   </article>
                   <article class="post-next col-6">

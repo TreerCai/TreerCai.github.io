@@ -179,7 +179,7 @@
   
 
 <div id="banner" class="banner" parallax=true
-     style="background: url('/img/bg/lanhu.jpg') no-repeat center center; background-size: cover;">
+     style="background: url('/img/bg/bg3.png') no-repeat center center; background-size: cover;">
   <div class="full-bg-img">
     <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
       <div class="banner-text text-center fade-in-up">
@@ -223,15 +223,48 @@
     <article class="col-12 col-md-12 mx-auto index-info">
       <h1 class="index-header">
         
-        <a href="/2022/12/13/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/" target="_self">
+        <a href="/2022/12/15/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/" target="_self">
           G1GC算法篇
         </a>
       </h1>
 
       
-      <a class="index-excerpt index-excerpt__noimg" href="/2022/12/13/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/" target="_self">
+      <a class="index-excerpt index-excerpt__noimg" href="/2022/12/15/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/" target="_self">
         <div>
-          G1GC算法 G1GC 是什么？ 一些基本概念 实时性 G1GC 有什么特点？   G1GC 的堆结构是什么样的？ G1GC 的执行过程是什么样的？ 并发标记 并发标记是什么 标记位图 执行步骤 步骤 1——初始标记阶段 步骤 2——并发标记阶段 SATB   步骤 3——最终标记阶段 步骤 4——存活对象计数 步骤 5——收尾工作 转移效率 并发标记总结   转移 转移是什么？ 转移专用记忆集合
+          前言本文将通过对G1的整个回收周期的算法原理进行解读，如有偏差，请指正。 G1GC(Garbage First Garbage Collection)(简称G1) 自 JDK9 起，替代 Parallel Scavenge 和 Parallel Old 的组合，作为 Hotspot 在 Server 端的默认垃圾回收器，具有停顿时间可控、不产生内存碎片、返还未使用内存给堆等的特性，在 JDK9 之
+        </div>
+      </a>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2022-12-15 11:15" pubdate>
+              2022-12-15
+            </time>
+          </div>
+        
+        
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
+        <a href="/2022/12/13/G1GC%E7%AE%97%E6%B3%95%E7%AF%87%20copy/" target="_self">
+          G1GC算法篇
+        </a>
+      </h1>
+
+      
+      <a class="index-excerpt index-excerpt__noimg" href="/2022/12/13/G1GC%E7%AE%97%E6%B3%95%E7%AF%87%20copy/" target="_self">
+        <div>
+          前言G1GC(Garbage First Garbage Collection)(简称G1)概念在04年的一篇论文就已经被提出，在JDK 6 Update 14 发布时推出了G1的测试版，并在其后经过不断地完善，最终在12年的 JDK7 Update 4正式发布，直到 JDK9 时被正式扶正，替代了原来的 Parallel Scavenge 和 Parallel Old的组合，成为Hotspot
         </div>
       </a>
 
