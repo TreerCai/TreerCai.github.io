@@ -24,13 +24,13 @@
 <meta property="og:description" content="前言本文将通过对G1的整个回收周期的算法原理进行解读，如有偏差，请指正。">
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/copy.gif">
-<meta property="og:image" content="https://treer-zhou.gitee.io/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/G1%E5%A0%86.png">
+<meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/G1%E5%A0%86.png">
 <meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E6%96%B0%E7%94%9F%E4%BB%A3%E5%A4%A7%E5%B0%8F.png">
-<meta property="og:image" content="https://treer-zhou.gitee.io/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E6%A0%87%E8%AE%B0%E4%BD%8D%E5%9B%BE.png">
-<meta property="og:image" content="https://treer-zhou.gitee.io/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%B8%80%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%BC%80%E5%A7%8B.png">
-<meta property="og:image" content="https://treer-zhou.gitee.io/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%B8%80%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%AE%8C%E6%88%90.png">
-<meta property="og:image" content="https://treer-zhou.gitee.io/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%BA%8C%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%BC%80%E5%A7%8B.png">
-<meta property="og:image" content="https://treer-zhou.gitee.io/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%BA%8C%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%AE%8C%E6%88%90.png">
+<meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E6%A0%87%E8%AE%B0%E4%BD%8D%E5%9B%BE.png">
+<meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%B8%80%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%BC%80%E5%A7%8B.png">
+<meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%B8%80%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%AE%8C%E6%88%90.png">
+<meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%BA%8C%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%BC%80%E5%A7%8B.png">
+<meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%BA%8C%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%AE%8C%E6%88%90.png">
 <meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E5%88%9D%E5%A7%8B%E6%A0%87%E8%AE%B0.png">
 <meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E9%98%B6%E6%AE%B5.png">
 <meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E6%BC%8F%E6%A0%87.gif">
@@ -45,7 +45,7 @@
 <meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/GC%E6%89%A7%E8%A1%8C%E6%B4%BB%E5%8A%A8%E5%9B%BE.png">
 <meta property="og:image" content="https://treer-zhou.gitee.io/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/G1%E6%B4%BB%E5%8A%A8%E5%9B%BE.png">
 <meta property="article:published_time" content="2022-12-20T14:15:48.000Z">
-<meta property="article:modified_time" content="2022-12-21T01:17:36.523Z">
+<meta property="article:modified_time" content="2022-12-21T01:23:12.733Z">
 <meta property="article:author" content="Treer Cai">
 <meta property="article:tag" content="GC">
 <meta property="article:tag" content="Java">
@@ -242,7 +242,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          12k words
+          11k words
         
       </span>
     
@@ -253,7 +253,7 @@
         
         
         
-          97 mins
+          96 mins
         
       </span>
     
@@ -356,30 +356,14 @@
 <h1 id="G1GC-的堆结构"><a href="#G1GC-的堆结构" class="headerlink" title="G1GC 的堆结构"></a>G1GC 的堆结构</h1><p>G1GC 堆的内部被划分为大小相等的 <code>Region</code> ，G1GC 以 Region 为单位进行 GC ，Region 的大小 <code>RegionSize</code> 在 JVM 初始化时初始完毕且在当前 java 进程结束前不会改变。在 HotSpot 的源码中 <code>TARGET_REGION_NUMBER</code> 定义了 Region 的数量限制为 2048 个（实际上允许超过这个值）。一般 RegionSize 等于堆空间的总大小除以 2048 ，也可以用参数 -XX:G1HeapRegionSize 强制指定每个 Region 区的大小用户可以设置 Region 大小，但需要满足 RegionSize 是向上调整为 2 的指数幂，同时需要保证最小不小于 1MB ，最大不超过 32MB （集合 { 1MB , 2MB , 4MB , 8MB , 16MB , 32MB } 内）。</p>
 <p>比如目前的堆空间总大小为 8.5GB ，RegionSize 就是 8704MB&#x2F;2048 &#x3D; 4.25MB ，那么最终每个 Region 的大小为 8MB 。当一个 region 剩余空间不足以满足下一个对象所需空间时， Hotspot 直接放弃 region 中剩余空间，在新分配的 region 中分配对象； OpenJ9 利用剩下的空间，让对象跨 region 存放。</p>
 <h2 id="G1GC-分代分区"><a href="#G1GC-分代分区" class="headerlink" title="G1GC 分代分区"></a>G1GC 分代分区</h2><p>在 G1 收集器中逻辑依旧是分代的，依旧存在年轻代 <code>Eden</code> 区、幸存区 <code>Survivor</code> 、老年代 <code>Old</code> 区，但在物理内存上是不分代的。G1 的每个代区由物理内存不连续的 Region 集合构成，这样做的好处在于：G1 可以优先回收垃圾对象特别多的 Region 区，这样可以花费较少的时间来回收垃圾，这也就是 G1 名字的由来，即垃圾优先收集器。<br>在运行时，G1 会将堆空间变为如下结构：</p>
-<center>
-<img src="/img/G1GC算法篇/G1堆.png" srcset="/treer_zhou/img/loading.gif" lazyload style="zoom:35%" title="分代 G1GC 堆空间划分" >
-<br>
-    <div style="color:orange; 
-    color: #999;
-    padding: 2px;">分代 G1GC 堆空间划分
-    </div>
-</center>
-
+<p><img src="/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/G1%E5%A0%86.png" srcset="/treer_zhou/img/loading.gif" lazyload alt="分代 G1GC 堆空间划分"></p>
 <p>新创建的对象都会被分配到 Eden 区，对象经过第一次 YGC 后，仍然存活的会被移到 Survivor 区，多次GC后依然存活的对象会被移动到 Old 区。图中除了提到的三个分区还多了大对象区 <code>Humongous</code> 与 <code>未分配区</code> 。在 G1 中当对象大小超过单个普通 Region 区的 50% 时，认定对象为大对象，大对象会直接将其放入 Humongous 区存储，当一个 Humongous 区存不下时，可能会横跨多个 Region 区存储它。在大多数时 Humongous 区会被当做老年代看待。</p>
 <h2 id="G1GC-新生代动态调整大小"><a href="#G1GC-新生代动态调整大小" class="headerlink" title="G1GC 新生代动态调整大小"></a>G1GC 新生代动态调整大小</h2><p>G1 的设计目标是软实时，应以响应时间优先。 G1 根据基于衰减平均值的停顿预测模型统计以前发生 GC 时记录的数据来预测本次收集需要选择的分区数量。以新生代收集为例（通过添加参数 -XX:+PrintGCDetails 查看）</p>
 <p><img src="/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E6%96%B0%E7%94%9F%E4%BB%A3%E5%A4%A7%E5%B0%8F.png" srcset="/treer_zhou/img/loading.gif" lazyload alt="新生代动态调整大小"></p>
 <p>如上图彩色框图所示， G1 随着 GC 的发生，根据 GC 耗时动态调整新生代 Eden 区和 Survivor 区的个数，当Eden区满后触发下一次 GC 收集。通过这种方式来保证 GC 带来的最大停顿时间不超过期望暂停时间。当然上图展示的是比较理想的 YGC 过程，G1GC 的收集策略会在后续详细介绍。</p>
 <h1 id="并发标记"><a href="#并发标记" class="headerlink" title="并发标记"></a>并发标记</h1><p>通常 GC 算法在标记存活对象时，为了避免在标记过程中发生引用关系改变的情况，都需要让应用程序在安全点处停下，也就是常说的<code>Stop The World</code>简称 STW 。G1 在对老年代的标记过程中引入了并发标记，并发指的是与应用程序<code>mutator</code>并发执行。并发标记并不是直接在对象上添加标记，而是在<code>标记位图</code>上添加标记。</p>
 <h2 id="标记位图"><a href="#标记位图" class="headerlink" title="标记位图"></a>标记位图</h2><p>下图表示堆中的一个 region ，位图中黑色表示已标记存活，白色表示未标记为存活。</p>
-<center>
-<img src="/img/G1GC算法篇/标记位图.png" srcset="/treer_zhou/img/loading.gif" lazyload style="zoom:45%" title="标记位图" >
-<br>
-    <div style="color:orange; 
-    color: #999;
-    padding: 2px;">标记位图
-    </div>
-</center>
-
+<p><img src="/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E6%A0%87%E8%AE%B0%E4%BD%8D%E5%9B%BE.png" srcset="/treer_zhou/img/loading.gif" lazyload alt="标记位图"></p>
 <p>需要强调下，图中为了展示对应关系，将标记位图画得同 region 相对应，实际上标记位图每一格只有 1bit ，而 region 上一块为单个对象，标记位图中的每个 bit 都对应关联 region 内的对象的开头部分。假设单个对象的大小都是 8 个字节（本文后续都如此假定），那么每 8 个字节就会对应标记位图中的 1个bit 。图中标记位图里黑色的地方表示比特值是 1 ，白色的地方表示比特值是 0 。相应地，region 内黑色的是存活对象，带有叉号的是死亡对象。</p>
 <p>每个region有两个标记位图：</p>
 <ul>
@@ -395,25 +379,9 @@
 </ul>
 <p>并发标记结束主要针对的是 G1 老年代中 region 部分的标记，根据 G1 的清理策略，并不会对所有 region 做垃圾收集（会选择垃圾最多的几个 region 作清理）。所以保存上次标记结果 prev ，用于确定上次标记的存活对象在本次标记后是否能存活，而不扫描上次已经确定死亡的对象。</p>
 <p>下列图展示对同一块 region 两次并发标记始末状态，用来说明 prev 标记位图和 next 标记位图的作用</p>
-<center class = half>
-<img src="/img/G1GC算法篇/第一次并发标记开始.png" srcset="/treer_zhou/img/loading.gif" lazyload height="143" title="第一次并发标记开始状态" >
-<img src="/img/G1GC算法篇/第一次并发标记完成.png" srcset="/treer_zhou/img/loading.gif" lazyload height="143" title="第一次并发标记完成状态" >
-<br>
-    <div style="color:orange; color: #999;padding: 2px;">
-    第一次并发标记开始状态&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;第一次并发标记完成状态
-    </div>
-</center>
-
+<p><img src="/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%B8%80%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%BC%80%E5%A7%8B.png" srcset="/treer_zhou/img/loading.gif" lazyload alt="第一次并发标记开始状态"><br><img src="/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%B8%80%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%AE%8C%E6%88%90.png" srcset="/treer_zhou/img/loading.gif" lazyload alt="第一次并发标记完成状态"></p>
 <p>如上图所见，到第一次并发标记完成，标记了所有 bottom 到 nextTAMS 内所有存活对象（标记完成后会在收尾阶段将标记位图 next 中的并发标记结果移动到标记位图 prev 中，再重置标记位图 next ）</p>
-<center class = half>
-<img src="/img/G1GC算法篇/第二次并发标记开始.png" srcset="/treer_zhou/img/loading.gif" lazyload height="153" title="第二次并发标记开始状态" >
-<img src="/img/G1GC算法篇/第二次并发标记完成.png" srcset="/treer_zhou/img/loading.gif" lazyload height="153" title="第二次并发标记完成状态" >
-<br>
-    <div style="color:orange; color: #999;padding: 2px;">
-    第二次并发标记开始状态&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;第二次并发标记完成状态
-    </div>
-</center>
-
+<p><img src="/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%BA%8C%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%BC%80%E5%A7%8B.png" srcset="/treer_zhou/img/loading.gif" lazyload alt="第二次并发标记开始状态"><br><img src="/treer_zhou/img/G1GC%E7%AE%97%E6%B3%95%E7%AF%87/%E7%AC%AC%E4%BA%8C%E6%AC%A1%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%AE%8C%E6%88%90.png" srcset="/treer_zhou/img/loading.gif" lazyload alt="第二次并发标记完成状态"></p>
 <p>等到新一轮并发标记开始时时，</p>
 <ol>
 <li>对当前 Bottom 和 top 之间的对象创建空白的标记位图 next</li>
@@ -600,12 +568,6 @@
                   </article>
                   <article class="post-next col-6">
                     
-                    
-                      <a href="/treer_zhou/2022/12/20/Specjbb%E6%B5%8B%E8%AF%95%E9%9B%86%E5%88%86%E6%9E%90/" title="Specjbb测试集分析">
-                        <span class="hidden-mobile">Specjbb测试集分析</span>
-                        <span class="visible-mobile">Next</span>
-                        <i class="iconfont icon-arrowright"></i>
-                      </a>
                     
                   </article>
                 </div>
