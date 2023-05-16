@@ -1,0 +1,646 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/bg/tubiao.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Treer Cai">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="JFR Event 记录源码分析JDK Flight Recorder ( JFR ) 记录以 Event 为单位，每个 Event 都有事件类型，开始时间，结束时间，发生事件的线程，事件发生的线程堆栈还有Event 数据体组成。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JFR可靠性分析">
+<meta property="og:url" content="https://treercai.github.io/2023/05/15/JFR%E5%8F%AF%E9%9D%A0%E6%80%A7%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="TreerCai&#39;s blog">
+<meta property="og:description" content="JFR Event 记录源码分析JDK Flight Recorder ( JFR ) 记录以 Event 为单位，每个 Event 都有事件类型，开始时间，结束时间，发生事件的线程，事件发生的线程堆栈还有Event 数据体组成。">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2023-05-15T07:44:27.000Z">
+<meta property="article:modified_time" content="2023-05-15T09:49:21.279Z">
+<meta property="article:author" content="Treer Cai">
+<meta property="article:tag" content="Hotspot">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="JDK Flight Recorder">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>JFR可靠性分析 - TreerCai&#39;s blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"treercai.github.io","root":"/","version":"1.9.3","typing":{"enable":true,"typeSpeed":60,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>TreerCai</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                Home
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                Archives
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                Categories
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                Tags
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                About
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/bg/bg1.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="JFR可靠性分析"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-05-15 15:44" pubdate>
+          May 15, 2023 pm
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          7k words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          59 mins
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">JFR可靠性分析</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="JFR-Event-记录源码分析"><a href="#JFR-Event-记录源码分析" class="headerlink" title="JFR Event 记录源码分析"></a>JFR Event 记录源码分析</h1><p>JDK Flight Recorder ( JFR ) 记录以 Event 为单位，每个 Event 都有<code>事件类型</code>，<code>开始时间</code>，<code>结束时间</code>，<code>发生事件的线程</code>，<code>事件发生的线程堆栈</code>还有<code>Event 数据体组成</code>。<span id="more"></span></p>
+<p>下面我们通过源码的方式理解 JFR 记录的过程</p>
+<h1 id="开启记录并提交"><a href="#开启记录并提交" class="headerlink" title="开启记录并提交"></a>开启记录并提交</h1><p>以 JavaMonitorEnter 为例，首先查看 JavaMonitorEnter 的 Event 数据体（大多数 Event 的数据体描述都记录在 metadata.xml 文件中，category&#x3D;”Java Development kit” 的 Event 数据体不在里面 ）</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs xml"><span class="hljs-comment">&lt;!--bishengjdk-11-mirror/src/hotspot/share/jfr/metadata/metadata.xml--&gt;</span><br>  <span class="hljs-tag">&lt;<span class="hljs-name">Event</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;JavaMonitorEnter&quot;</span> <span class="hljs-attr">category</span>=<span class="hljs-string">&quot;Java Application&quot;</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Java Monitor Blocked&quot;</span> <span class="hljs-attr">thread</span>=<span class="hljs-string">&quot;true&quot;</span> <span class="hljs-attr">stackTrace</span>=<span class="hljs-string">&quot;true&quot;</span>&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">Field</span> <span class="hljs-attr">type</span>=<span class="hljs-string">&quot;Class&quot;</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;monitorClass&quot;</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Monitor Class&quot;</span> /&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">Field</span> <span class="hljs-attr">type</span>=<span class="hljs-string">&quot;Thread&quot;</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;previousOwner&quot;</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Previous Monitor Owner&quot;</span> /&gt;</span><br>    <span class="hljs-tag">&lt;<span class="hljs-name">Field</span> <span class="hljs-attr">type</span>=<span class="hljs-string">&quot;ulong&quot;</span> <span class="hljs-attr">contentType</span>=<span class="hljs-string">&quot;address&quot;</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;address&quot;</span> <span class="hljs-attr">label</span>=<span class="hljs-string">&quot;Monitor Address&quot;</span> <span class="hljs-attr">relation</span>=<span class="hljs-string">&quot;JavaMonitorAddress&quot;</span> /&gt;</span><br>  <span class="hljs-tag">&lt;/<span class="hljs-name">Event</span>&gt;</span><br><br></code></pre></td></tr></table></figure>
+<p>通过 metadata.xml 中的描述可知 JavaMonitorEnter Event 的数据体包括 <code>monitorClass</code> <code>previousOwner</code> <code>address</code>，相应的描述也在 metadata.xml 中。当开启 JFR 对 JavaMonitorEnter Event 采集时，会在 ObjectMonitor::enter 函数内额外执行以下部分</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/share/runtime/objectMonitor.cpp</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">ObjectMonitor::enter</span><span class="hljs-params">(TRAPS)</span> </span>&#123;<br>    <span class="hljs-comment">//...</span><br>    EventJavaMonitorEnter event;<br>    <span class="hljs-keyword">if</span> (event.<span class="hljs-built_in">should_commit</span>()) &#123;<br>    event.<span class="hljs-built_in">set_monitorClass</span>(((oop)<span class="hljs-keyword">this</span>-&gt;<span class="hljs-built_in">object</span>())-&gt;<span class="hljs-built_in">klass</span>());<br>    event.<span class="hljs-built_in">set_address</span>((<span class="hljs-type">uintptr_t</span>)(<span class="hljs-keyword">this</span>-&gt;<span class="hljs-built_in">object_addr</span>()));<br>    &#125;<br>    <span class="hljs-comment">//...</span><br>    <span class="hljs-keyword">if</span> (event.<span class="hljs-built_in">should_commit</span>()) &#123;<br>    event.<span class="hljs-built_in">set_previousOwner</span>((<span class="hljs-type">uintptr_t</span>)_previous_owner_tid);<br>    event.<span class="hljs-built_in">commit</span>();<br>    &#125;<br><br></code></pre></td></tr></table></figure>
+
+<p>代码抽象出来看其实包括4个部分：</p>
+<ol>
+<li>某个 Event 对象初始化</li>
+<li>判断是否开启某个 Event 的检测</li>
+<li>设置某个 Event 对应的<code>数据体</code></li>
+<li>event.commit()</li>
+</ol>
+<p>这部分代码首先回答了<code>Event 数据体</code>信息的采集过程，另一方面 commit 会完成剩余的<code>开始时间</code>，<code>结束时间</code>，<code>发生事件的线程</code>，<code>事件发生的线程堆栈</code>信息的采集（<code>事件类型</code>由 Event 类确定），下面通过源码方式理解</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-comment">//bishengjdk-11-mirror/build/linux-x86_64-normal-server-release/hotspot/variant-server/gensrc/jfrfiles/jfrEventClasses.hpp</span><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">EventJavaMonitorEnter</span> : <span class="hljs-keyword">public</span> JfrEvent&lt;EventJavaMonitorEnter&gt;<br>&#123;<br>    <span class="hljs-comment">//初始化对象，当timing=TIMED时，需要记下当前时刻的时间作为测试开始时间</span><br>    <span class="hljs-built_in">EventJavaMonitorEnter</span>(EventStartTime timing=TIMED) : <span class="hljs-built_in">JfrEvent</span>&lt;EventJavaMonitorEnter&gt;(timing) &#123;&#125;<br>    <span class="hljs-comment">//...</span><br>    <span class="hljs-comment">//使用父类的commit函数</span><br>    <span class="hljs-keyword">using</span> JfrEvent&lt;EventJavaMonitorEnter&gt;::commit;<br>    <span class="hljs-comment">//...</span><br>&#125;<br><span class="hljs-comment">//bishengjdk-8/hotspot/src/share/vm/jfr/recorder/service/jfrEvent.hpp</span><br><span class="hljs-keyword">template</span> &lt;<span class="hljs-keyword">typename</span> T&gt;<br><span class="hljs-keyword">class</span> <span class="hljs-title class_">JfrEvent</span> &#123;<br>  <span class="hljs-keyword">private</span>:<br>  jlong _start_time;<br>  jlong _end_time;<br>  <span class="hljs-type">bool</span> _started;<br><br>  <span class="hljs-keyword">protected</span>:<br>  <span class="hljs-comment">//初始化函数，当TIMED == timing &amp;&amp; !T::isInstant时会设置当前 Event 对象的开始时间（为当前）</span><br>  <span class="hljs-built_in">JfrEvent</span>(EventStartTime timing=TIMED) : _start_time(<span class="hljs-number">0</span>), _end_time(<span class="hljs-number">0</span>), _started(<span class="hljs-literal">false</span>)  &#123;<br>    <span class="hljs-keyword">if</span> (T::<span class="hljs-built_in">is_enabled</span>()) &#123;<br>      _started = <span class="hljs-literal">true</span>;<br>      <span class="hljs-keyword">if</span> (TIMED == timing &amp;&amp; !T::isInstant) &#123;<br>        <span class="hljs-built_in">set_starttime</span>(JfrTicks::<span class="hljs-built_in">now</span>());<br>      &#125;<br>    &#125;<br>  &#125;<br>  <span class="hljs-comment">//当完成 Event 数据体采集后调用 commit 函数</span><br>  <span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">commit</span><span class="hljs-params">()</span> </span>&#123;<br>    <span class="hljs-comment">//判断是否需要commit</span><br>    <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">should_commit</span>()) &#123;<br>      <span class="hljs-keyword">return</span>;<br>    &#125;<br>    <span class="hljs-comment">// 针对不同 Event 有不同采集需求，有的需要同时记录开始结束时间，有的只需要一个开始时间</span><br>    <span class="hljs-comment">// 如果初始化没有设置 _start_time，则 _start_time 为当前时间</span><br>    <span class="hljs-keyword">if</span> (_start_time == <span class="hljs-number">0</span>) &#123;<br>      <span class="hljs-built_in">set_starttime</span>(JfrTicks::<span class="hljs-built_in">now</span>());<br>    &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (_end_time == <span class="hljs-number">0</span>) &#123;<br>    <span class="hljs-comment">//正常情况下在初始化对象时设置完_start_time，在commit函数内设置_endtime为当前时间</span><br>      <span class="hljs-built_in">set_endtime</span>(JfrTicks::<span class="hljs-built_in">now</span>());<br>    &#125;<br>    <span class="hljs-comment">// 记录线程信息与堆栈信息</span><br>    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">should_write</span>()) &#123;<br>      <span class="hljs-built_in">write_event</span>();<br>    &#125;<br>  &#125;<br>  <span class="hljs-comment">//...</span><br>  <span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">write_event</span><span class="hljs-params">()</span> </span>&#123;<br>  <span class="hljs-comment">//获取当前线程  </span><br>  Thread* <span class="hljs-type">const</span> event_thread = Thread::<span class="hljs-built_in">current</span>();<br>  <span class="hljs-comment">//获取当前线程的 jfr 的线程私有信息</span><br>  JfrThreadLocal* <span class="hljs-type">const</span> tl = event_thread-&gt;<span class="hljs-built_in">jfr_thread_local</span>();<br>  <span class="hljs-comment">//找到线程私有内存中的 jfr buffer</span><br>  JfrBuffer* <span class="hljs-type">const</span> buffer = tl-&gt;<span class="hljs-built_in">native_buffer</span>();<br>  <span class="hljs-comment">//buffer 为空直接返回</span><br>  <span class="hljs-keyword">if</span> (buffer == <span class="hljs-literal">NULL</span>) &#123;<br>    <span class="hljs-comment">// most likely a pending OOM</span><br>    <span class="hljs-keyword">return</span>;<br>  &#125;<br>  <span class="hljs-function">JfrNativeEventWriter <span class="hljs-title">writer</span><span class="hljs-params">(buffer, event_thread)</span></span>;<br>  <span class="hljs-comment">//将当前 Event 的Id写入buffer</span><br>  writer.<span class="hljs-built_in">write</span>&lt;u8&gt;(T::eventId);<br>  <span class="hljs-comment">//将当前 Event 的开始时间写入buffer</span><br>  writer.<span class="hljs-built_in">write</span>(_start_time);<br>  <span class="hljs-keyword">if</span> (!(T::isInstant || T::isRequestable) || T::hasCutoff) &#123;<br>  <span class="hljs-comment">//将当前 Event 的持续时间写入buffer</span><br>    writer.<span class="hljs-built_in">write</span>(_end_time - _start_time);<br>  &#125;<br>  <span class="hljs-keyword">if</span> (T::hasThread) &#123;<br>  <span class="hljs-comment">//将当前 Event 的线程号写入buffer</span><br>    writer.<span class="hljs-built_in">write</span>(tl-&gt;<span class="hljs-built_in">thread_id</span>());<br>  &#125;<br>  <span class="hljs-comment">//将当前 Event 的堆栈写入buffer</span><br>  <span class="hljs-keyword">if</span> (T::hasStackTrace) &#123;<br>    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">is_stacktrace_enabled</span>()) &#123;<br>    <span class="hljs-keyword">if</span> (tl-&gt;<span class="hljs-built_in">has_cached_stack_trace</span>()) &#123;<br>      writer.<span class="hljs-built_in">write</span>(tl-&gt;<span class="hljs-built_in">cached_stack_trace_id</span>());<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>      writer.<span class="hljs-built_in">write</span>(JfrStackTraceRepository::<span class="hljs-built_in">record</span>(event_thread));<br>    &#125;<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>        writer.<span class="hljs-built_in">write</span>&lt;traceid&gt;(<span class="hljs-number">0</span>);<br>      &#125;<br>    &#125;<br>  <span class="hljs-comment">// payload</span><br>  <span class="hljs-built_in">static_cast</span>&lt;T*&gt;(<span class="hljs-keyword">this</span>)-&gt;<span class="hljs-built_in">writeData</span>(writer);<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>通过上述方式，将 Event 的<code>事件类型</code>，<code>开始时间</code>，<code>持续时间</code>，<code>发生事件的线程</code>，<code>事件发生的线程堆栈</code>还有<code>Event 数据体组成</code>都写入线程私有的 Buffer 内存中，后续会在 buffer 满之后，将 buffer 内的数据提交到 global buffer 内。</p>
+<h1 id="时间获取的方式"><a href="#时间获取的方式" class="headerlink" title="时间获取的方式"></a>时间获取的方式</h1><p>通过上文的源码分析可以发现，JFR 获取时间戳的方式为 JfrTicks::now() 函数</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/share/jfr/utilities/jfrTime.hpp</span><br><span class="hljs-keyword">typedef</span> TimeInstant&lt;CounterRepresentation, FastUnorderedElapsedCounterSource&gt; JfrTicks;<br><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/share/utilities/ticks.hpp</span><br><span class="hljs-keyword">template</span> &lt;<span class="hljs-keyword">template</span> &lt;<span class="hljs-keyword">typename</span>&gt; <span class="hljs-keyword">class</span> <span class="hljs-title class_">Rep</span>, <span class="hljs-keyword">typename</span> TimeSource&gt;<br><span class="hljs-keyword">class</span> <span class="hljs-title class_">TimeInstant</span> : <span class="hljs-keyword">public</span> Rep&lt;TimeSource&gt; &#123;<br>    <span class="hljs-comment">//...</span><br>  <span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">stamp</span><span class="hljs-params">()</span> </span>&#123;<br>    <span class="hljs-keyword">this</span>-&gt;_rep = TimeSource::<span class="hljs-built_in">now</span>();<br>  &#125;<br>  <span class="hljs-function"><span class="hljs-type">static</span> TimeInstant&lt;Rep, TimeSource&gt; <span class="hljs-title">now</span><span class="hljs-params">()</span> </span>&#123;<br>    TimeInstant&lt;Rep, TimeSource&gt; temp;<br>    temp.<span class="hljs-built_in">stamp</span>();<br>    <span class="hljs-keyword">return</span> temp;<br>  &#125;<br>&#125;;<br><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/share/utilities/ticks.cpp</span><br><span class="hljs-function">FastUnorderedElapsedCounterSource::Type <span class="hljs-title">FastUnorderedElapsedCounterSource::now</span><span class="hljs-params">()</span> </span>&#123;<br><span class="hljs-meta">#<span class="hljs-keyword">if</span> defined(X86) &amp;&amp; !defined(ZERO)</span><br>  <span class="hljs-type">static</span> <span class="hljs-type">bool</span> valid_rdtsc = Rdtsc::<span class="hljs-built_in">initialize</span>();<br>  <span class="hljs-keyword">if</span> (valid_rdtsc) &#123;<br>    <span class="hljs-keyword">return</span> Rdtsc::<span class="hljs-built_in">elapsed_counter</span>();<br>  &#125;<br><span class="hljs-meta">#<span class="hljs-keyword">endif</span></span><br>  <span class="hljs-keyword">return</span> os::<span class="hljs-built_in">elapsed_counter</span>();<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>不难看出 x86 对应 JVM 获取时间的方式是通过调用 Rdtsc::elapsed_counter() 函数获取，而非 x86 操作系统对应的 JVM 获取时间的方式是通过调用 os::elapsed_counter() 函数实现的。</p>
+<p>os::elapsed_counter()函数最终依赖的是操作系统库函数的 clock_gettime 函数</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/os/linux/os_linux.cpp</span><br><span class="hljs-function">jlong <span class="hljs-title">os::elapsed_counter</span><span class="hljs-params">()</span> </span>&#123;<br>  <span class="hljs-keyword">return</span> <span class="hljs-built_in">javaTimeNanos</span>() - initial_time_count;<br>&#125;<br><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/os/linux/os_linux.cpp</span><br><span class="hljs-function">jlong <span class="hljs-title">os::javaTimeNanos</span><span class="hljs-params">()</span> </span>&#123;<br>  <span class="hljs-comment">//return Linux::_clock_gettime != NULL;</span><br>  <span class="hljs-keyword">if</span> (os::<span class="hljs-built_in">supports_monotonic_clock</span>()) &#123;<br>    <span class="hljs-keyword">struct</span> <span class="hljs-title class_">timespec</span> tp;<br>    <span class="hljs-type">int</span> status = Linux::<span class="hljs-built_in">clock_gettime</span>(CLOCK_MONOTONIC, &amp;tp);<br>    jlong result = <span class="hljs-built_in">jlong</span>(tp.tv_sec) * (<span class="hljs-number">1000</span> * <span class="hljs-number">1000</span> * <span class="hljs-number">1000</span>) + <span class="hljs-built_in">jlong</span>(tp.tv_nsec);<br>    <span class="hljs-keyword">return</span> result;<br>  &#125; <span class="hljs-keyword">else</span> &#123;<br>    <span class="hljs-comment">//...</span><br>  &#125;<br>&#125;<br><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/os/linux/os_linux.hpp</span><br><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-built_in">clock_gettime</span>(<span class="hljs-type">clockid_t</span> clock_id, <span class="hljs-keyword">struct</span> timespec *tp) &#123;<br><span class="hljs-keyword">return</span> _clock_gettime ? _clock_gettime(clock_id, tp) : <span class="hljs-number">-1</span>;<br>&#125;<br><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/os/linux/os_linux.cpp</span><br><span class="hljs-type">void</span> os::Linux::<span class="hljs-built_in">clock_init</span>() &#123;<br>  <span class="hljs-type">void</span>* handle = <span class="hljs-built_in">dlopen</span>(<span class="hljs-string">&quot;librt.so.1&quot;</span>, RTLD_LAZY);<br>  <span class="hljs-keyword">if</span> (handle == <span class="hljs-literal">NULL</span>) &#123;<br>    handle = <span class="hljs-built_in">dlopen</span>(<span class="hljs-string">&quot;librt.so&quot;</span>, RTLD_LAZY);<br>  &#125;<br><br>  <span class="hljs-keyword">if</span> (handle) &#123;<br>    <span class="hljs-built_in">int</span> (*clock_getres_func)(<span class="hljs-type">clockid_t</span>, <span class="hljs-keyword">struct</span> timespec*) =<br>           (<span class="hljs-built_in">int</span>(*)(<span class="hljs-type">clockid_t</span>, <span class="hljs-keyword">struct</span> timespec*))<span class="hljs-built_in">dlsym</span>(handle, <span class="hljs-string">&quot;clock_getres&quot;</span>);<br>    <span class="hljs-built_in">int</span> (*clock_gettime_func)(<span class="hljs-type">clockid_t</span>, <span class="hljs-keyword">struct</span> timespec*) =<br>           (<span class="hljs-built_in">int</span>(*)(<span class="hljs-type">clockid_t</span>, <span class="hljs-keyword">struct</span> timespec*))<span class="hljs-built_in">dlsym</span>(handle, <span class="hljs-string">&quot;clock_gettime&quot;</span>);<br>    <span class="hljs-keyword">if</span> (clock_getres_func &amp;&amp; clock_gettime_func) &#123;<br>      <span class="hljs-keyword">struct</span> <span class="hljs-title class_">timespec</span> res;<br>      <span class="hljs-keyword">struct</span> <span class="hljs-title class_">timespec</span> tp;<br>      <span class="hljs-keyword">if</span> (<span class="hljs-built_in">clock_getres_func</span> (CLOCK_MONOTONIC, &amp;res) == <span class="hljs-number">0</span> &amp;&amp;<br>          <span class="hljs-built_in">clock_gettime_func</span>(CLOCK_MONOTONIC, &amp;tp)  == <span class="hljs-number">0</span>) &#123;<br>        <span class="hljs-comment">// yes, monotonic clock is supported</span><br>        _clock_gettime = clock_gettime_func;<br>        <span class="hljs-keyword">return</span>;<br>      &#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-comment">// close librt if there is no monotonic clock</span><br>        <span class="hljs-built_in">dlclose</span>(handle);<br>      &#125;<br>    &#125;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p> x86 对应 JVM 的 Rdtsc::elapsed_counter() 函数最终通过指令 __rdtsc获取时间戳</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/Hotspot/">#Hotspot</a>
+      
+        <a href="/tags/Java/">#Java</a>
+      
+        <a href="/tags/JDK-Flight-Recorder/">#JDK Flight Recorder</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>JFR可靠性分析</div>
+      <div>https://treercai.github.io/2023/05/15/JFR可靠性分析/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>Author</div>
+          <div>Treer Cai</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>Posted on</div>
+          <div>May 15, 2023</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>Licensed under</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - Attribution">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2023/05/12/JFR%E6%A6%82%E8%BF%B0/" title="JFR概述">
+                        <span class="hidden-mobile">JFR概述</span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;Table of Contents</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://treercai.github.io/" target="_blank" rel="nofollow noopener"><span>TreerCai&lsquo;s Blog</span></a> <i class="iconfont icon-love"></i> <div> There is no end to learning. </div> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>
