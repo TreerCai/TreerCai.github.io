@@ -231,7 +231,7 @@
       
       <a class="index-excerpt index-excerpt__noimg" href="/2023/06/07/UseMembar/" target="_self">
         <div>
-          protect_memory由于涉及到页表的更改，需要刷新对应页的CPU的TLB cache。OS会向各CPU发送IPI中断来做这个事。各CPU在处理TLB cache的时候，必定会先将对应页的本地store buffer刷新到内存（如果不做，那将来再刷的时候可能引起内存访问违例，这违反单线程处理语义）。而OS会一直等待，直到各CPU都处理完成。所以事实上protect_memory会跟各CPU对
+          这一篇文章的切入口是 JVM 中的 UseMembar 参数，并依此聊一聊对 Store Buffer 的粗浅理解，如有不当之处欢迎指正。
         </div>
       </a>
 
