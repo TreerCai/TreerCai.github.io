@@ -1,0 +1,667 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/bg/tubiao.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Treer Cai">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="JFR MethodProfiling Event 简介JMC 的 “方法分析” 页用于查看特定方法的运行频率以及运行方法所需的时间。可以帮助用户通过识别执行时间过长的方法来确定方法瓶颈。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JFR MethodProfiling">
+<meta property="og:url" content="https://treercai.github.io/2023/06/05/JFR-MethodProfiling/index.html">
+<meta property="og:site_name" content="TreerCai&#39;s blog">
+<meta property="og:description" content="JFR MethodProfiling Event 简介JMC 的 “方法分析” 页用于查看特定方法的运行频率以及运行方法所需的时间。可以帮助用户通过识别执行时间过长的方法来确定方法瓶颈。">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://treercai.github.io/img/JFRMethodProfiling/JMC-mp.png">
+<meta property="article:published_time" content="2023-06-05T02:33:09.000Z">
+<meta property="article:modified_time" content="2023-06-08T01:37:46.973Z">
+<meta property="article:author" content="Treer Cai">
+<meta property="article:tag" content="Hotspot">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="JDK Flight Recorder">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://treercai.github.io/img/JFRMethodProfiling/JMC-mp.png">
+  
+  
+  
+  <title>JFR MethodProfiling - TreerCai&#39;s blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"treercai.github.io","root":"/","version":"1.9.3","typing":{"enable":true,"typeSpeed":60,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>TreerCai</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                Home
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                Archives
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                Categories
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                Tags
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                About
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/bg/bg1.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="JFR MethodProfiling"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-06-05 10:33" pubdate>
+          June 5, 2023 am
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          8.2k words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          69 mins
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">JFR MethodProfiling</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="JFR-MethodProfiling-Event-简介"><a href="#JFR-MethodProfiling-Event-简介" class="headerlink" title="JFR MethodProfiling Event 简介"></a>JFR MethodProfiling Event 简介</h1><p>JMC 的 “方法分析” 页用于查看特定方法的运行频率以及运行方法所需的时间。可以帮助用户通过识别执行时间过长的方法来确定方法瓶颈。<span id="more"></span></p>
+<p><img src="/img/JFRMethodProfiling/JMC-mp.png" srcset="/img/loading.gif" lazyload alt="Method Profiling 页面"></p>
+<p>方法分析页面的数据来源是 JFR 记录的 ExecutionSample 事件信息与 NativeMethodSample 事件信息。本文从源码角度分析方法采样事件采集的过程与原理。如有偏颇，请指正。</p>
+<h1 id="JFR-MethodProfiling-Event-采样算法文字描述"><a href="#JFR-MethodProfiling-Event-采样算法文字描述" class="headerlink" title="JFR MethodProfiling Event 采样算法文字描述"></a>JFR MethodProfiling Event 采样算法文字描述</h1><ul>
+<li>另起 JFR 线程采样线程，开始持续采样。</li>
+<li>获取<code>当前时间</code></li>
+<li>判断信号量 _semaphore 是否大于 0  (初始 &#x3D; 1)<ul>
+<li>大于 0 _semaphore 减去 1 (获得锁可运行)</li>
+<li>等于 0 阻塞当前线程直到 _semaphore 大于0 (用于关闭采样线程)，重新获取到信号量时，更新当前时间</li>
+</ul>
+</li>
+<li>持续采样，根据<code>上次采样结束的时间</code> + <code>设置的间隔时间</code> &#x3D; <code>下次采样的时间</code></li>
+<li>判断 <code>下次采样的时间</code> 是否大于 <code>当前时间</code><ul>
+<li>大于当前时间说明还不能开始采样，sleep 。<code>睡眠时间</code> &#x3D; <code>下次采样的时间</code> - <code>当前时间</code></li>
+<li>小于说明可以开始这一次的采样了</li>
+</ul>
+</li>
+<li>从上次采样的线程，对往后固定个数(Java 5 Native 1)个 Java 线程进行采样<ul>
+<li>获取上次采样最后的线程在 Java 线程列表中的线程号，并从下一个线程开始（如果上次遍历完列表 或 这是第一次遍历，则从列表第一个线程开始）采样，采样个数固定(Java 5 Native 1)。由于是传址调用，采样结束后最后一个被采样的线程会被记住，方便下次采样。</li>
+</ul>
+</li>
+<li>采样结束，更新<code>采样结束的时间</code>，回到持续采用。</li>
+</ul>
+<h1 id="JFR-MethodProfiling-Event-采样算法源码分析"><a href="#JFR-MethodProfiling-Event-采样算法源码分析" class="headerlink" title="JFR MethodProfiling Event 采样算法源码分析"></a>JFR MethodProfiling Event 采样算法源码分析</h1><h2 id="方法采样频次控制"><a href="#方法采样频次控制" class="headerlink" title="方法采样频次控制"></a>方法采样频次控制</h2><p>ExecutionSample 与 NativeMethodSample 事件属于采样事件，需要按照一定频率进行。 Hotspot 会起一个专门的线程按照一定频次完成采样任务，一次采样任务只会采集固定个数的指定类型线程，并记录最后采集的线程；等下一次采集任务发生时会根据上次采集的线程，继续采集固定个数的指定类型线程，知道线程队列都被采集过一遍，再从头开始采集。</p>
+<p>接下来通过分析 OpenJDK11 源码的方式看一下。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/share/jfr/periodic/sampling/jfrThreadSampler.cpp</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">JfrThreadSampler::run</span><span class="hljs-params">()</span> </span>&#123;<br>  <span class="hljs-comment">// 当前为新建的采样任务线程</span><br>  _sampler_thread = <span class="hljs-keyword">this</span>;<br>  <span class="hljs-comment">// 初始化变量，last_java_ms 与 last_native_ms 分别记录最后一次 java/native方法采样的时间</span><br>  jlong last_java_ms = <span class="hljs-built_in">get_monotonic_ms</span>();<br>  jlong last_native_ms = last_java_ms;<br>  <span class="hljs-comment">//死循环，采样将持续进行，直到当前应用程序结束或者手动关闭 JFR 记录</span><br>  <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) &#123;<br>    <span class="hljs-comment">//尝试获取信号量锁，_semaphore &gt; 0 =&gt; _semaphore -1 就不用进循环</span><br>    <span class="hljs-keyword">if</span> (!_sample.<span class="hljs-built_in">trywait</span>()) &#123;<br>      <span class="hljs-comment">// disenrolled</span><br>      _sample.<span class="hljs-built_in">wait</span>();<br>      <span class="hljs-comment">// 信号量 _semaphore -1 ，更新 last 时间</span><br>      last_java_ms = <span class="hljs-built_in">get_monotonic_ms</span>();<br>      last_native_ms = last_java_ms;<br>    &#125;<br>    <span class="hljs-comment">// 设置进程信号量 _sample 的 _semaphore +1 </span><br>    _sample.<span class="hljs-built_in">signal</span>();<br>    <span class="hljs-comment">// 设置记录间隔</span><br>    jlong java_interval = _interval_java == <span class="hljs-number">0</span> ? max_jlong : <span class="hljs-built_in">MAX2</span>&lt;jlong&gt;(_interval_java, <span class="hljs-number">1</span>);<br>    jlong native_interval = _interval_native == <span class="hljs-number">0</span> ? max_jlong : <span class="hljs-built_in">MAX2</span>&lt;jlong&gt;(_interval_native, <span class="hljs-number">1</span>);<br>    <span class="hljs-comment">// 设置当前时间</span><br>    jlong now_ms = <span class="hljs-built_in">get_monotonic_ms</span>();<br>    <span class="hljs-comment">// 还剩 next 时间可以开始下次的方法采样</span><br>    jlong next_j = java_interval + (last_java_ms - now_ms);<br>    jlong next_n = native_interval + (last_native_ms - now_ms);<br><br>    jlong sleep_to_next = <span class="hljs-built_in">MIN2</span>&lt;jlong&gt;(next_j, next_n);<br>    <span class="hljs-comment">// sleep_to_next &gt; 0 还需等待，还不能开始</span><br>    <span class="hljs-keyword">if</span> (sleep_to_next &gt; <span class="hljs-number">0</span>) &#123;<br>      os::<span class="hljs-built_in">naked_short_sleep</span>(sleep_to_next);<span class="hljs-comment">//短暂等待，更新 sleep_to_next</span><br>    &#125;<br><br>    <span class="hljs-comment">// &lt;= 0 说明需要等待的时间为 &quot;负&quot; 可以开始采样</span><br>    <span class="hljs-comment">// 相同的判断，分别开始采样 Java 方法 与 Native 方法</span><br>    <span class="hljs-comment">// 最后更新 最后采样时间。</span><br>    <span class="hljs-keyword">if</span> ((next_j - sleep_to_next) &lt;= <span class="hljs-number">0</span>) &#123;<br>      <span class="hljs-comment">// 传入上一次采样的 Java 线程指针，传址调用，会在函数内部被修改为这次采样的最后一个线程</span><br>      <span class="hljs-built_in">task_stacktrace</span>(JAVA_SAMPLE, &amp;_last_thread_java);<br>      last_java_ms = <span class="hljs-built_in">get_monotonic_ms</span>();<br>    &#125;<br>    <span class="hljs-keyword">if</span> ((next_n - sleep_to_next) &lt;= <span class="hljs-number">0</span>) &#123;<br>      <span class="hljs-built_in">task_stacktrace</span>(NATIVE_SAMPLE, &amp;_last_thread_native);<br>      last_native_ms = <span class="hljs-built_in">get_monotonic_ms</span>();<br>    &#125;<br>  &#125;<br>  <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>方法采样频次的源码分析在上述源码中已经详细分析，不难看出 Java 方法的采样与 Native 方法的采样调用相同的方法，故此处只以 Java 方法的采样为例，进行分析。Native 方法的采样逻辑留待有兴趣的读者自行挖掘。</p>
+<h2 id="Java-方法采样准备工作"><a href="#Java-方法采样准备工作" class="headerlink" title="Java 方法采样准备工作"></a>Java 方法采样准备工作</h2><p>上一节的源码部分实现的是固定间隔时间的采样频次控制，task_stacktrace 函数实现的是每次对固定个数线程反栈的操作。源码分析如下</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/share/jfr/periodic/sampling/jfrThreadSampler.cpp</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">JfrThreadSampler::task_stacktrace</span><span class="hljs-params">(JfrSampleType type, JavaThread** last_thread)</span> </span>&#123;<br>  ResourceMark rm;<br>  <span class="hljs-comment">// 方法采样事件组</span><br>  <span class="hljs-comment">// MAX_NR_OF_JAVA_SAMPLES = 5 MAX_NR_OF_NATIVE_SAMPLES = 1</span><br>  <span class="hljs-comment">// 每一次采样 Java 方法只采 5 个线程 Native 只采 1 个线程</span><br>  EventExecutionSample samples[MAX_NR_OF_JAVA_SAMPLES];<br>  EventNativeMethodSample samples_native[MAX_NR_OF_NATIVE_SAMPLES];<br>  <span class="hljs-function">JfrThreadSampleClosure <span class="hljs-title">sample_task</span><span class="hljs-params">(samples, samples_native)</span></span>;<br><br>  <span class="hljs-type">const</span> uint sample_limit = JAVA_SAMPLE == type ? MAX_NR_OF_JAVA_SAMPLES : MAX_NR_OF_NATIVE_SAMPLES;<br>  uint num_samples = <span class="hljs-number">0</span>;<br>  JavaThread* start = <span class="hljs-literal">NULL</span>;<br><br>  &#123;<br>    elapsedTimer sample_time;<br>    sample_time.<span class="hljs-built_in">start</span>();<br>    &#123;<br>      <span class="hljs-function">MonitorLockerEx <span class="hljs-title">tlock</span><span class="hljs-params">(Threads_lock, Mutex::_allow_vm_block_flag)</span></span>;<br>      <span class="hljs-comment">// Java 线程列表（包括在执行 Native 和 Java 方法的所有 JavaThread）</span><br>      ThreadsListHandle tlh;<br>      <span class="hljs-comment">// Resolve a sample session relative start position index into the thread list array.</span><br>      <span class="hljs-comment">// In cases where the last sampled thread is NULL or not-NULL but stale, find_index() returns -1.</span><br>      <span class="hljs-comment">// 上一次被采样的线程在线程列表中的线程号（如果是从头遍历，*last_thread = NULL，_cur_index = -1）</span><br>      _cur_index = tlh.<span class="hljs-built_in">list</span>()-&gt;<span class="hljs-built_in">find_index_of_JavaThread</span>(*last_thread);<br>      JavaThread* current = _cur_index != <span class="hljs-number">-1</span> ? *last_thread : <span class="hljs-literal">NULL</span>;<br><br>      <span class="hljs-keyword">while</span> (num_samples &lt; sample_limit) &#123;<br>        <span class="hljs-comment">// 找到下一个要被采样的线程 </span><br>        <span class="hljs-comment">//（如果 current 为 NULL 说明是一次新的遍历，current被更新为 0 号 Java 线程）</span><br>        current = <span class="hljs-built_in">next_thread</span>(tlh.<span class="hljs-built_in">list</span>(), start, current);<br>        <span class="hljs-comment">// current == NULL 说明线程列表都被采样完了，这一次即使没采满指定线程数也要退出了</span><br>        <span class="hljs-keyword">if</span> (current == <span class="hljs-literal">NULL</span>) &#123;<br>          <span class="hljs-keyword">break</span>;<br>        &#125;<br>        <span class="hljs-comment">// start == NULL 说明是从头开始的新遍历，需要初始化 start</span><br>        <span class="hljs-keyword">if</span> (start == <span class="hljs-literal">NULL</span>) &#123;<br>          start = current;  <span class="hljs-comment">// remember the thread where we started to attempt sampling</span><br>        &#125;<br>        <span class="hljs-comment">// 跳过编译线程</span><br>        <span class="hljs-keyword">if</span> (current-&gt;<span class="hljs-built_in">is_Compiler_thread</span>()) &#123;<br>          <span class="hljs-keyword">continue</span>;<br>        &#125;<br>        <span class="hljs-comment">// 对线程进行反栈，反栈成功则采样数 +1</span><br>        <span class="hljs-keyword">if</span> (sample_task.<span class="hljs-built_in">do_sample_thread</span>(current, _frames, _max_frames, type)) &#123;<br>          num_samples++;<br>        &#125;<br>      &#125;<br>      <span class="hljs-comment">// 采样结束，将最后采样的线程设置为当前采样的线程</span><br>      *last_thread = current;  <span class="hljs-comment">// remember the thread we last attempted to sample</span><br>    &#125;<br>    sample_time.<span class="hljs-built_in">stop</span>();<br>    <span class="hljs-built_in">log_trace</span>(jfr)(<span class="hljs-string">&quot;JFR thread sampling done in %3.7f secs with %d java %d native samples&quot;</span>,<br>                   sample_time.<span class="hljs-built_in">seconds</span>(), sample_task.<span class="hljs-built_in">java_entries</span>(), sample_task.<span class="hljs-built_in">native_entries</span>());<br>  &#125;<br>  <span class="hljs-keyword">if</span> (num_samples &gt; <span class="hljs-number">0</span>) &#123;<br>    sample_task.<span class="hljs-built_in">commit_events</span>(type);<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>这一部分主要包括采样线程的确定，单个线程的采样过程又被包装在 do_sample_thread 函数内，do_sample_thread 函数完成对正在执行不同方法的 Java 线程进行分类（按 Native 和 Java 方法）</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">JfrThreadSampleClosure::do_sample_thread</span><span class="hljs-params">(JavaThread* thread, JfrStackFrame* frames, u4 max_frames, JfrSampleType type)</span> </span>&#123;<br>  <span class="hljs-comment">// 线程无法被反栈的话就当没采到</span><br>  <span class="hljs-keyword">if</span> (thread-&gt;<span class="hljs-built_in">is_hidden_from_external_view</span>() || thread-&gt;<span class="hljs-built_in">in_deopt_handler</span>()) &#123;<br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>  &#125;<br><br>  <span class="hljs-type">bool</span> ret = <span class="hljs-literal">false</span>;<br>  <span class="hljs-comment">// 将当前被采线程的 _suspendible_thread 状态原子的（cmpxchg）设置为 _trace_flag</span><br>  thread-&gt;<span class="hljs-built_in">set_trace_flag</span>();<br>  <span class="hljs-comment">// 对于虚拟屏障技术需要置换状态记录页的权限，确保 JavaThread 类的 _thread_state 状态是最新的 </span><br>  <span class="hljs-keyword">if</span> (!UseMembar) &#123;<br>    os::<span class="hljs-built_in">serialize_thread_states</span>();<br>  &#125;<br>  <span class="hljs-comment">// 根据采样事件类型确定当前线程是否是需要被采样的</span><br>  <span class="hljs-keyword">if</span> (JAVA_SAMPLE == type) &#123;<br>    <span class="hljs-comment">// 判断当前 JavaThread 的 _thread_state 是否为 Java 方法</span><br>    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">thread_state_in_java</span>(thread)) &#123;<br>      <span class="hljs-comment">// 按照 Java 方法线程的方式进行反栈</span><br>      ret = <span class="hljs-built_in">sample_thread_in_java</span>(thread, frames, max_frames);<br>    &#125;<br>  &#125; <span class="hljs-keyword">else</span> &#123;<br>    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">thread_state_in_native</span>(thread)) &#123;<br>      ret = <span class="hljs-built_in">sample_thread_in_native</span>(thread, frames, max_frames);<br>    &#125;<br>  &#125;<br>  <span class="hljs-built_in">clear_transition_block</span>(thread);<br>  <span class="hljs-keyword">return</span> ret;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>sample_thread_in_java 函数除了包含反栈操作，还将得到的方法信息存储起来，并返回方法栈的在仓库中的 ID</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">JfrThreadSampleClosure::sample_thread_in_java</span><span class="hljs-params">(JavaThread* thread, JfrStackFrame* frames, u4 max_frames)</span> </span>&#123;<br>  <span class="hljs-function">OSThreadSampler <span class="hljs-title">sampler</span><span class="hljs-params">(thread, *<span class="hljs-keyword">this</span>, frames, max_frames)</span></span>;<br>  <span class="hljs-comment">// 线程反栈获得函数调用栈</span><br>  sampler.<span class="hljs-built_in">take_sample</span>();<br>  <span class="hljs-comment">// 判断反栈是否成功</span><br>  <span class="hljs-keyword">if</span> (!sampler.<span class="hljs-built_in">success</span>()) &#123;<br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>  &#125;<br>  <span class="hljs-comment">// 方法采样事件</span><br>  EventExecutionSample *event = &amp;_events[_added_java - <span class="hljs-number">1</span>];<br>  <span class="hljs-comment">// 将得到的函数调用栈信息存储到 Heap 上，获得一个 id。</span><br>  <span class="hljs-comment">// Heap 上的信息会在程序退出或者根据启动 JFR 的 duration 参数 dump 到磁盘上。</span><br>  traceid id = JfrStackTraceRepository::<span class="hljs-built_in">add</span>(sampler.<span class="hljs-built_in">stacktrace</span>());<br>  <span class="hljs-comment">// 方法采样时间记录 id</span><br>  event-&gt;<span class="hljs-built_in">set_stackTrace</span>(id);<br>  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;<br>&#125;<br><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">OSThreadSampler::take_sample</span><span class="hljs-params">()</span> </span>&#123;<br>  <span class="hljs-built_in">run</span>();<br>&#125;<br><br><span class="hljs-comment">//class OSThreadSampler : public os::SuspendedThreadTask</span><br><span class="hljs-type">void</span> os::SuspendedThreadTask::<span class="hljs-built_in">run</span>() &#123;<br>  <span class="hljs-built_in">internal_do_task</span>();<br>  _done = <span class="hljs-literal">true</span>;<br>&#125;<br><br><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/os/linux/os_linux.cpp</span><br><span class="hljs-type">void</span> os::SuspendedThreadTask::<span class="hljs-built_in">internal_do_task</span>() &#123;<br>  <span class="hljs-comment">// suspend 线程</span><br>  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">do_suspend</span>(_thread-&gt;<span class="hljs-built_in">osthread</span>())) &#123;<br>    <span class="hljs-comment">// 获得线程 TaskContext</span><br>    <span class="hljs-function">SuspendedThreadTaskContext <span class="hljs-title">context</span><span class="hljs-params">(_thread, _thread-&gt;osthread()-&gt;ucontext())</span></span>;<br>    <span class="hljs-comment">// 根据 TaskContext 获得函数调用栈信息</span><br>    <span class="hljs-built_in">do_task</span>(context);<br>    <span class="hljs-comment">// 恢复线程</span><br>    <span class="hljs-built_in">do_resume</span>(_thread-&gt;<span class="hljs-built_in">osthread</span>());<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>可以看到，最后反栈的过程会通过四部曲完成 —— 线程suspend,获得ucontext,do_task,线程resume</p>
+<h1 id="采样线程-suspend"><a href="#采样线程-suspend" class="headerlink" title="采样线程 suspend"></a>采样线程 suspend</h1><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-comment">//bishengjdk-11-mirror/src/hotspot/os/linux/os_linux.cpp</span><br><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">bool</span> <span class="hljs-title">do_suspend</span><span class="hljs-params">(OSThread* osthread)</span> </span>&#123;<br><br>  <span class="hljs-comment">// osthread-&gt;sr-&gt;_state 变为 SR_SUSPEND_REQUEST</span><br>  <span class="hljs-keyword">if</span> (osthread-&gt;sr.<span class="hljs-built_in">request_suspend</span>() != os::SuspendResume::SR_SUSPEND_REQUEST) &#123;<br>    <span class="hljs-comment">// failed to switch, state wasn&#x27;t running?</span><br>    <span class="hljs-built_in">ShouldNotReachHere</span>();<br>    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>  &#125;<br>  <span class="hljs-comment">// 向线程传入 signal 信号（信号与对应的信号处理后续补充）</span><br>  <span class="hljs-comment">// pthread_kill(osthread-&gt;pthread_id(), SR_signum)</span><br>  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">sr_notify</span>(osthread) != <span class="hljs-number">0</span>) &#123;<br>    <span class="hljs-built_in">ShouldNotReachHere</span>();<br>  &#125;<br><br>  <span class="hljs-comment">// managed to send the signal and switch to SUSPEND_REQUEST, now wait for SUSPENDED</span><br>  <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) &#123;<br>    <span class="hljs-comment">// 尝试将全局对象 sr_semaphore 的信号量 _semaphore  -1</span><br>    <span class="hljs-keyword">if</span> (sr_semaphore.<span class="hljs-built_in">timedwait</span>(<span class="hljs-built_in">create_semaphore_timespec</span>(<span class="hljs-number">0</span>, <span class="hljs-number">2</span> * NANOSECS_PER_MILLISEC))) &#123;<br>      <span class="hljs-comment">// 完成 -1，跳出循环</span><br>      <span class="hljs-keyword">break</span>;<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>      <span class="hljs-comment">// 没完成即超过 2 ms的时间限制</span><br>      <span class="hljs-comment">// timeout</span><br>      os::SuspendResume::State cancelled = osthread-&gt;sr.<span class="hljs-built_in">cancel_suspend</span>();<br>      <span class="hljs-keyword">if</span> (cancelled == os::SuspendResume::SR_RUNNING) &#123;<br>        <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>      &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (cancelled == os::SuspendResume::SR_SUSPENDED) &#123;<br>        <span class="hljs-comment">// make sure that we consume the signal on the semaphore as well</span><br>        sr_semaphore.<span class="hljs-built_in">wait</span>();<br>        <span class="hljs-keyword">break</span>;<br>      &#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-built_in">ShouldNotReachHere</span>();<br>        <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;<br>      &#125;<br>    &#125;<br>  &#125;<br><br>  <span class="hljs-built_in">guarantee</span>(osthread-&gt;sr.<span class="hljs-built_in">is_suspended</span>(), <span class="hljs-string">&quot;Must be suspended&quot;</span>);<br>  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/Hotspot/">#Hotspot</a>
+      
+        <a href="/tags/Java/">#Java</a>
+      
+        <a href="/tags/JDK-Flight-Recorder/">#JDK Flight Recorder</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>JFR MethodProfiling</div>
+      <div>https://treercai.github.io/2023/06/05/JFR-MethodProfiling/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>Author</div>
+          <div>Treer Cai</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>Posted on</div>
+          <div>June 5, 2023</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>Licensed under</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - Attribution">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2023/06/07/UseMembar/" title="UseMembar?">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">UseMembar?</span>
+                        <span class="visible-mobile">Previous</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2023/05/19/JVM-%E9%94%81%E5%90%8C%E6%AD%A5/" title="JVM 锁同步">
+                        <span class="hidden-mobile">JVM 锁同步</span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;Table of Contents</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://treercai.github.io/" target="_blank" rel="nofollow noopener"><span>TreerCai&lsquo;s Blog</span></a> <i class="iconfont icon-love"></i> <div> There is no end to learning. </div> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>

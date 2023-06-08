@@ -185,7 +185,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="There is nothing but gabage about JVM"></span>
+            <span id="subtitle" data-typed-text="There is nothing but my understanding about JVM"></span>
           
         </div>
 
@@ -216,6 +216,136 @@
               <div class="col-12 col-md-10 m-auto">
                 
 
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
+        <a href="/2023/06/07/UseMembar/" target="_self">
+          UseMembar?
+        </a>
+      </h1>
+
+      
+      <a class="index-excerpt index-excerpt__noimg" href="/2023/06/07/UseMembar/" target="_self">
+        <div>
+          protect_memory由于涉及到页表的更改，需要刷新对应页的CPU的TLB cache。OS会向各CPU发送IPI中断来做这个事。各CPU在处理TLB cache的时候，必定会先将对应页的本地store buffer刷新到内存（如果不做，那将来再刷的时候可能引起内存访问违例，这违反单线程处理语义）。而OS会一直等待，直到各CPU都处理完成。所以事实上protect_memory会跟各CPU对
+        </div>
+      </a>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2023-06-07 17:34" pubdate>
+              2023-06-07
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/Hotspot/">#Hotspot</a>
+            
+              <a href="/tags/Java/">#Java</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
+        <a href="/2023/06/05/JFR-MethodProfiling/" target="_self">
+          JFR MethodProfiling
+        </a>
+      </h1>
+
+      
+      <a class="index-excerpt index-excerpt__noimg" href="/2023/06/05/JFR-MethodProfiling/" target="_self">
+        <div>
+          JFR MethodProfiling Event 简介JMC 的 “方法分析” 页用于查看特定方法的运行频率以及运行方法所需的时间。可以帮助用户通过识别执行时间过长的方法来确定方法瓶颈。
+        </div>
+      </a>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2023-06-05 10:33" pubdate>
+              2023-06-05
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/Hotspot/">#Hotspot</a>
+            
+              <a href="/tags/Java/">#Java</a>
+            
+              <a href="/tags/JDK-Flight-Recorder/">#JDK Flight Recorder</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
+        <a href="/2023/05/19/JVM-%E9%94%81%E5%90%8C%E6%AD%A5/" target="_self">
+          JVM 锁同步
+        </a>
+      </h1>
+
+      
+      <a class="index-excerpt index-excerpt__noimg" href="/2023/05/19/JVM-%E9%94%81%E5%90%8C%E6%AD%A5/" target="_self">
+        <div>
+          Java 锁相关的资料有很多，此处是笔者的粗浅理解，如有不当之处欢迎指正。
+        </div>
+      </a>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2023-05-19 17:03" pubdate>
+              2023-05-19
+            </time>
+          </div>
+        
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/Hotspot/">#Hotspot</a>
+            
+              <a href="/tags/Java/">#Java</a>
+            
+              <a href="/tags/monitor/">#monitor</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
 
   <div class="row mx-auto index-card">
     
