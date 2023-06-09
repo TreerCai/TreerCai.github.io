@@ -25,7 +25,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://treercai.github.io/img/JFRMethodProfiling/JMC-mp.png">
 <meta property="article:published_time" content="2023-06-05T02:33:09.000Z">
-<meta property="article:modified_time" content="2023-06-08T01:37:46.973Z">
+<meta property="article:modified_time" content="2023-06-09T01:20:59.436Z">
 <meta property="article:author" content="Treer Cai">
 <meta property="article:tag" content="Hotspot">
 <meta property="article:tag" content="Java">
@@ -279,7 +279,7 @@
                 
                 <h1 id="JFR-MethodProfiling-Event-简介"><a href="#JFR-MethodProfiling-Event-简介" class="headerlink" title="JFR MethodProfiling Event 简介"></a>JFR MethodProfiling Event 简介</h1><p>JMC 的 “方法分析” 页用于查看特定方法的运行频率以及运行方法所需的时间。可以帮助用户通过识别执行时间过长的方法来确定方法瓶颈。<span id="more"></span></p>
 <p><img src="/img/JFRMethodProfiling/JMC-mp.png" srcset="/img/loading.gif" lazyload alt="Method Profiling 页面"></p>
-<p>方法分析页面的数据来源是 JFR 记录的 ExecutionSample 事件信息与 NativeMethodSample 事件信息。本文从源码角度分析方法采样事件采集的过程与原理。如有偏颇，请指正。</p>
+<p>方法分析页面的数据来源是 JFR 记录的 ExecutionSample 事件信息与 NativeMethodSample 事件信息。本文从源码角度分析 JFR 方法采样方式的独特性。如有偏颇，请指正。</p>
 <h1 id="JFR-MethodProfiling-Event-采样算法文字描述"><a href="#JFR-MethodProfiling-Event-采样算法文字描述" class="headerlink" title="JFR MethodProfiling Event 采样算法文字描述"></a>JFR MethodProfiling Event 采样算法文字描述</h1><ul>
 <li>另起 JFR 线程采样线程，开始持续采样。</li>
 <li>获取<code>当前时间</code></li>

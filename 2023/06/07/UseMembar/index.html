@@ -25,7 +25,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://treercai.github.io/img/UseMembar/storebuffer.png">
 <meta property="article:published_time" content="2023-06-07T09:34:14.000Z">
-<meta property="article:modified_time" content="2023-06-08T09:40:22.663Z">
+<meta property="article:modified_time" content="2023-06-09T02:26:53.566Z">
 <meta property="article:author" content="Treer Cai">
 <meta property="article:tag" content="Hotspot">
 <meta property="article:tag" content="Java">
@@ -222,7 +222,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          3.3k words
+          4.5k words
         
       </span>
     
@@ -233,7 +233,7 @@
         
         
         
-          28 mins
+          38 mins
         
       </span>
     
@@ -314,17 +314,30 @@
 <h1 id="伪内存屏障"><a href="#伪内存屏障" class="headerlink" title="伪内存屏障"></a>伪内存屏障</h1><p>很显然当 Thread 0 高频次交替运行 Java 方法和 Native 方法，而 Thread 1 仅少量次数调用 bar() 方法时，写内存屏障的存在就只能带来性能上的损耗，回到开头的小例子：</p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-type">static</span> a = <span class="hljs-number">0</span>;<br><span class="hljs-type">static</span> b = <span class="hljs-number">0</span>;<br><span class="hljs-comment">// CPU0 执行</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">foo</span><span class="hljs-params">()</span> </span>&#123; <br>    a = <span class="hljs-number">1</span>;<br>    b = <span class="hljs-number">1</span>;<br>&#125;<br><br><span class="hljs-comment">// CPU1 执行</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">bar</span><span class="hljs-params">()</span> </span>&#123;<br>    <span class="hljs-keyword">while</span>(b == <span class="hljs-number">0</span>) <span class="hljs-keyword">continue</span>;<br>    <span class="hljs-built_in">assert</span>(a == <span class="hljs-number">1</span>);<br>&#125;<br><br></code></pre></td></tr></table></figure>
 
-<p>我们是不是可以考虑不添加写屏障，变为只在 assert(a &#x3D;&#x3D; 1); 之前强制所有的 CPU 将 a 的新值都更新到 cache 上，这样也能保证正确性。即变为如下情况</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-type">static</span> a = <span class="hljs-number">0</span>;<br><span class="hljs-type">static</span> b = <span class="hljs-number">0</span>;<br><span class="hljs-comment">// CPU0 执行</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">foo</span><span class="hljs-params">()</span> </span>&#123; <br>    a = <span class="hljs-number">1</span>;<br>    b = <span class="hljs-number">1</span>;<br>&#125;<br><br><span class="hljs-comment">// CPU1 执行</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">bar</span><span class="hljs-params">()</span> </span>&#123;<br>    <span class="hljs-keyword">while</span>(b == <span class="hljs-number">0</span>) <span class="hljs-keyword">continue</span>;<br>    <span class="hljs-built_in">serialize_thread_states</span>();<br>    <span class="hljs-built_in">assert</span>(a == <span class="hljs-number">1</span>);<br>&#125;<br><br></code></pre></td></tr></table></figure>
+<p>考虑第二种处理方式（对应-XX:-UseMembar），我们是不是可以考虑不添加写屏障，变为只在 assert(a &#x3D;&#x3D; 1) 之前，保证所有其他 CPU 接受到 Invalidate 消息，这样也能保证正确性。实际上 CPU1 并不知道有没有没收到的 Invalidate 消息，那么索性将要读的值 a 置为 invalid 状态，但这又引来了新问题，需要保证所有 store buffer 中的 a 的值刷到内存上。即变为如下情况</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-type">static</span> a = <span class="hljs-number">0</span>;<br><span class="hljs-type">static</span> b = <span class="hljs-number">0</span>;<br><span class="hljs-comment">// CPU0 执行</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">foo</span><span class="hljs-params">()</span> </span>&#123; <br>    a = <span class="hljs-number">1</span>;<br>    b = <span class="hljs-number">1</span>;<br>&#125;<br><br><span class="hljs-comment">// CPU1 执行</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">bar</span><span class="hljs-params">()</span> </span>&#123;<br>    <span class="hljs-keyword">while</span>(b == <span class="hljs-number">0</span>) <span class="hljs-keyword">continue</span>;<br>    <span class="hljs-comment">//使 a 在 cache 中状态变为 invalid，且将所有 CPU store buffer 中 a 的值刷入内存</span><br>    <span class="hljs-built_in">serialize_thread_states</span>();<br>    <span class="hljs-built_in">assert</span>(a == <span class="hljs-number">1</span>);<br>&#125;<br><br></code></pre></td></tr></table></figure>
 
-<p>这里的 serialize_thread_states() 函数的函数名延用了 Hotspot 中的名字，实现的效果时将 a 更新为最新值。我们来看看 Hotspot 中的实现逻辑：</p>
+<p>这里的 serialize_thread_states() 函数的函数名延用了 Hotspot 中的名字，实现的效果是将 a 在 cache 中状态变为 invalid。我们来看看 Hotspot 中的实现逻辑：</p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs c++"><span class="hljs-comment">// 前提 a 存在指定内存页 P 上</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">serialize_thread_states</span><span class="hljs-params">()</span> </span>&#123;<br>  <span class="hljs-number">1.</span> 当前线程获取内存页 P 的锁<br>  <span class="hljs-number">2.</span> 将内存页 P 的权限变为 只读<br>  <span class="hljs-number">3.</span> 将内存页 P 的权限变回 写读<br>  <span class="hljs-number">4.</span> 当前线程释放内存页 P 的锁<br>&#125;<br></code></pre></td></tr></table></figure>
 
-<p>其中，改变内存页权限的函数为内核函数 mprotect。其中将 a 更新为最新值的操作，在第 2 步<code>将内存页 P 的权限变为 只读</code>时已经完成。</p>
-<p>protect_memory由于涉及到页表的更改，需要刷新对应页的CPU的TLB cache。OS会向各CPU发送IPI中断来做这个事。各CPU在处理TLB cache的时候，必定会先将对应页的本地store buffer刷新到内存（如果不做，那将来再刷的时候可能引起内存访问违例，这违反单线程处理语义）。而OS会一直等待，直到各CPU都处理完成。所以事实上protect_memory会跟各CPU对这个页的访问建立一个同步点。而对这个页的访问必须是写，因为TSO架构的CPU写之间是不会发生乱序的，所以可以保证前面对线程状态的写发生在这个保护页的写之前。</p>
+<p>其中，改变内存页权限的函数为内核函数 mprotect。mprotect 函数的解析可以参考<a href="#references">《mprotect do memory barrier on SMP》</a></p>
+<p>mprotect 的本意是用来更改 Page 的属性 - 读、写、执行等页属性。它有一个副作用，就是更改页属性后，OS 会向各 CPU 发送 IPI 中断来失效处理器的 TLB (Translation Lookaside Buffer) 和 cache-line ，并为每个 CPU 添加 write memory barrier ，保证 Page 属性修改前对应页的本地 store buffer 刷新到内存。</p>
+<p>从处理上不难看出，伪内存屏障的处理更加损耗性能，那为什么还要提出这种处理方式呢，原因就在于方法调用的频次。当CPU0 调用 foo 方法的次数非常多时，伪内存屏障优化就会出现反效果。</p>
+<h1 id="UseMembar-如何选择"><a href="#UseMembar-如何选择" class="headerlink" title="UseMembar 如何选择"></a>UseMembar 如何选择</h1><p>如何选择是否开启 UseMembar 选项，一方面需要考虑 Hotspot 运行的平台上内存屏障的性能损耗（可能出现使用内存屏障性能损耗非常小，不构成性能瓶颈的情况）。另一方面需要判断伪内存屏障被调用频次多不多的问题，考虑如下两种情况。</p>
+<p>情况1：安全点</p>
+<p>正常需要进入安全点时，会将<code>safepoint _state（_synchronizing）</code>写入某处，然后所有可以进入安全点的线程会去同一个地方读取标志，来实现进入<code>Safepoint</code>的操作。但是需要注意，如果线程的状态是<code> _thread_in_native</code>即线程处运行在<code>native code</code>时，不需要等待该线程的阻塞，如果由于写读乱序导致了意外的STW，不会影响正确性。但是当<code>native</code>方法退出时，需要将线程的状态设置为<code> _thread_in_native_trans</code>，这一步必须在<code>Safepoint</code>开始之前完成，否则会出错！！</p>
+<p>所以将<code>_thread_in_native_trans</code>状态写入线程状态的操作与将<code>_synchronizing</code>状态写入内存的操作<strong>顺序</strong>需要保证在多核（is_MP）运行情况下一致！！</p>
+<p>此时有两种实现方式</p>
+<ol>
+<li>在写入<code> _thread_in_native_trans</code>状态之后添加内存写屏障，保证写入正确（-XX:+UseMembar）</li>
+<li>将<code> _thread_in_native_trans</code>状态写入<code>serialize_page</code>页，通过改变<code>serialize_page</code>页写读权限<br>（伪内存屏障-XX:-UseMembar）</li>
+</ol>
+<p>考虑到进 safepoint 的频次要小于 Native Java 方法切换的频次，可以考虑使用伪内存屏障（-XX:-UseMembar）</p>
+<p>情况2：JFR Method Profiling</p>
+<p>JFR 的 方法采样事件分为 <code>Java 方法采样</code>与<code>Native 方法采样</code>，在暂停线程之前需要判断被采样线程的线程状态，也需要保证<code>_thread_in_native_trans</code>状态已经写入线程状态。如果是 -XX:-UseMembar 状态则也会在判断前调用伪内存屏障，考虑到方法采样的频次会很高，这时候频繁调用伪内存屏障就成了 JFR 给应用程序带来的性能损耗的主要部分。所以，此时应该考虑使用物理屏障（-XX:+UseMembar）。</p>
 <p id="references"></p>    
 
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://blog.csdn.net/Soul_wh/article/details/125318641">《关于缓存一致性协议、MESI、StoreBuffer、InvalidateQueue、内存屏障、Lock指令和JMM的那点事》</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/sunboylife/article/details/125247619">《内存屏障今生之Store Buffer, Invalid Queue》</a></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://blog.csdn.net/Soul_wh/article/details/125318641">《关于缓存一致性协议、MESI、StoreBuffer、InvalidateQueue、内存屏障、Lock指令和JMM的那点事》</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/sunboylife/article/details/125247619">《内存屏障今生之Store Buffer, Invalid Queue》</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/65760539">《mprotect do memory barrier on SMP》</a><br><a href="">《Adventures with Memory Barriers and Seastar on Linux》</a></p>
 
                 
               </div>
