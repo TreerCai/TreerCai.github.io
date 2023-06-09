@@ -25,13 +25,15 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:image" content="https://treercai.github.io/img/UseMembar/storebuffer.png">
 <meta property="article:published_time" content="2023-06-07T09:34:14.000Z">
-<meta property="article:modified_time" content="2023-06-09T02:26:53.566Z">
+<meta property="article:modified_time" content="2023-06-09T06:25:15.139Z">
 <meta property="article:author" content="Treer Cai">
 <meta property="article:tag" content="Hotspot">
 <meta property="article:tag" content="Java">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://treercai.github.io/img/UseMembar/storebuffer.png">
   
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
   
   
   <title>UseMembar? - TreerCai&#39;s blog</title>
@@ -72,7 +74,7 @@
   <script id="fluid-configs">
     var Fluid = window.Fluid || {};
     Fluid.ctx = Object.assign({}, Fluid.ctx)
-    var CONFIG = {"hostname":"treercai.github.io","root":"/","version":"1.9.3","typing":{"enable":true,"typeSpeed":60,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"nRYRypo4iUpKJze5OlRgypb6-9Nh9j0Va","app_key":"jKBps8jHaQDcgfQdZvnokFn5","server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+    var CONFIG = {"hostname":"treercai.github.io","root":"/","version":"1.9.3","typing":{"enable":true,"typeSpeed":60,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
 
     if (CONFIG.web_analytics.follow_dnt) {
       var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
@@ -95,8 +97,6 @@
 
   
 
-  
-    
   
 
 
@@ -258,9 +258,9 @@
     
     
       
-        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+        <span id="busuanzi_container_page_pv" style="display: none">
           <i class="iconfont icon-eye" aria-hidden="true"></i>
-          <span id="leancloud-page-views"></span> views
+          <span id="busuanzi_value_page_pv"></span> views
         </span>
         
       
@@ -362,7 +362,7 @@
 <p>JFR 的 方法采样事件分为 <code>Java 方法采样</code>与<code>Native 方法采样</code>，在暂停线程之前需要判断被采样线程的线程状态，也需要保证<code>_thread_in_native_trans</code>状态已经写入线程状态。如果是 -XX:-UseMembar 状态则也会在判断前调用伪内存屏障，考虑到方法采样的频次会很高，这时候频繁调用伪内存屏障就成了 JFR 给应用程序带来的性能损耗的主要部分。所以，此时应该考虑使用物理屏障（-XX:+UseMembar）。</p>
 <p id="references"></p>    
 
-<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://blog.csdn.net/Soul_wh/article/details/125318641">《关于缓存一致性协议、MESI、StoreBuffer、InvalidateQueue、内存屏障、Lock指令和JMM的那点事》</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/sunboylife/article/details/125247619">《内存屏障今生之Store Buffer, Invalid Queue》</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/65760539">《mprotect do memory barrier on SMP》</a><br><a href="">《Adventures with Memory Barriers and Seastar on Linux》</a></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://blog.csdn.net/Soul_wh/article/details/125318641">《关于缓存一致性协议、MESI、StoreBuffer、InvalidateQueue、内存屏障、Lock指令和JMM的那点事》</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/sunboylife/article/details/125247619">《内存屏障今生之Store Buffer, Invalid Queue》</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/65760539">《mprotect do memory barrier on SMP》</a><br>[《Adventures with Memory Barriers and Seastar on Linux》]</p>
 
                 
               </div>
@@ -450,6 +450,38 @@
             </div>
 
             
+  <article id="comments" lazyload>
+    
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#comments', function() {
+      var light = 'github-light';
+      var dark = 'github-dark';
+      var schema = document.documentElement.getAttribute('data-user-color-scheme');
+      if (schema === 'dark') {
+        schema = dark;
+      } else {
+        schema = light;
+      }
+      window.UtterancesThemeLight = light;
+      window.UtterancesThemeDark = dark;
+      var s = document.createElement('script');
+      s.setAttribute('src', 'https://utteranc.es/client.js');
+      s.setAttribute('repo', 'TreerCai/comment-data');
+      s.setAttribute('issue-term', 'pathname');
+      
+      s.setAttribute('label', 'utterances');
+      
+      s.setAttribute('theme', schema);
+      s.setAttribute('crossorigin', 'anonymous');
+      document.getElementById('comments').appendChild(s);
+    })
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
           </article>
         </div>
       </div>
@@ -549,21 +581,20 @@
 
   
     
-      <span id="leancloud-site-pv-container" style="display: none">
+      <span id="busuanzi_container_site_pv" style="display: none">
         Views: 
-        <span id="leancloud-site-pv"></span>
+        <span id="busuanzi_value_site_pv"></span>
         
       </span>
     
     
-      <span id="leancloud-site-uv-container" style="display: none">
+      <span id="busuanzi_container_site_uv" style="display: none">
         Visitors: 
-        <span id="leancloud-site-uv"></span>
+        <span id="busuanzi_value_site_uv"></span>
         
       </span>
     
     
-
   
 </div>
 
@@ -712,9 +743,9 @@
 
   <script>Fluid.plugins.imageCaption();</script>
 
-  <script defer src="/js/leancloud.js" ></script>
-
   <script  src="/js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
 
 
 
