@@ -62,7 +62,7 @@
 <meta property="og:image" content="https://treercai.github.io/img/JFR%E6%A6%82%E8%BF%B0/Properties.png">
 <meta property="og:image" content="https://treercai.github.io/img/JFR%E6%A6%82%E8%BF%B0/egEB.png">
 <meta property="article:published_time" content="2023-05-12T09:25:27.000Z">
-<meta property="article:modified_time" content="2023-06-06T07:30:07.435Z">
+<meta property="article:modified_time" content="2023-06-12T02:58:46.044Z">
 <meta property="article:author" content="Treer Cai">
 <meta property="article:tag" content="Hotspot">
 <meta property="article:tag" content="Java">
@@ -462,7 +462,7 @@
 <h3 id="Method-Profiling-页"><a href="#Method-Profiling-页" class="headerlink" title="Method Profiling 页"></a>Method Profiling 页</h3><p>“方法分析”页用于查看特定方法的运行频率以及运行方法所需的时间。通过识别执行时间过长的方法来确定方法瓶颈。</p>
 <p>由于分析会生成大量数据，因此默认情况下不会打开。通过验证堆栈跟踪中的详细信息、检查代码、验证内存分配是否集中在特定对象上的方式，JFR 找到特定行号的特定问题并输出为结果。</p>
 <p><img src="/img/JFR%E6%A6%82%E8%BF%B0/MethodProfiling.png" srcset="/img/loading.gif" lazyload alt="Method Profiling 页面"></p>
-<p>上图中自动分析结果信息显示占用CPU最多的方法为 <code>void org.spec.jbb.core.collections.HashMultiSet.update(Object, int)</code> 这一点从方法部分无法准确感知，但是通过分析多个方法堆栈能够得出，<code>update</code> 方法的占用确实是最高的。方法分析页面的数据来源是 ExecutionSample 事件，是通过周期转储线程及线程堆栈的方式搜集方法频次。</p>
+<p>上图中自动分析结果信息显示占用CPU最多的方法为 <code>void org.spec.jbb.core.collections.HashMultiSet.update(Object, int)</code> 这一点从方法部分无法准确感知，但是通过分析多个方法堆栈能够得出，<code>update</code> 方法的占用确实是最高的。方法分析页面的数据来源是 ExecutionSample 事件，是通过周期线程堆栈的方式搜集方法频次。</p>
 <h3 id="其他页面"><a href="#其他页面" class="headerlink" title="其他页面"></a>其他页面</h3><p>除了上述比较重要的页面，Java 应用程序分析还包括：锁实例页面、File I&#x2F;O、Socket I&#x2F;O、Exceptions、Thread Dumps</p>
 <p>其中，锁实例页面提供有关指定锁信息（额外显示监视类、统计独立线程数与争用总次数）的线程的详细信息，即线程是否尝试获取锁或等待锁上的通知。如果线程已经采用任何锁，那么会在堆栈跟踪中显示详细信息。</p>
 <p><img src="/img/JFR%E6%A6%82%E8%BF%B0/lock.png" srcset="/img/loading.gif" lazyload alt="lock instance 页面"></p>
