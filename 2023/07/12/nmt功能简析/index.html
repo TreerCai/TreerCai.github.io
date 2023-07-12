@@ -1,0 +1,858 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/bg/tubiao.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Treer Cai">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="JVM通常会额外分配内存。这些额外的分配，会导致java程序占用的内存，超出-Xmx的限制。此时可以通过NMT查看内存的使用情况">
+<meta property="og:type" content="article">
+<meta property="og:title" content="nmt功能简析">
+<meta property="og:url" content="https://treercai.github.io/2023/07/12/nmt%E5%8A%9F%E8%83%BD%E7%AE%80%E6%9E%90/index.html">
+<meta property="og:site_name" content="TreerCai&#39;s blog">
+<meta property="og:description" content="JVM通常会额外分配内存。这些额外的分配，会导致java程序占用的内存，超出-Xmx的限制。此时可以通过NMT查看内存的使用情况">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2023-07-12T00:46:47.000Z">
+<meta property="article:modified_time" content="2023-07-12T06:56:21.664Z">
+<meta property="article:author" content="Treer Cai">
+<meta property="article:tag" content="Hotspot">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="NMT">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+    <meta name="referrer" content="no-referrer-when-downgrade">
+  
+  
+  <title>nmt功能简析 - TreerCai&#39;s blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"treercai.github.io","root":"/","version":"1.9.3","typing":{"enable":true,"typeSpeed":60,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>TreerCai</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                Home
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                Archives
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                Categories
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                Tags
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                About
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/bg/bg1.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="nmt功能简析"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-07-12 08:46" pubdate>
+          July 12, 2023 am
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          9.5k words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          80 mins
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="busuanzi_container_page_pv" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="busuanzi_value_page_pv"></span> views
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">nmt功能简析</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <p>JVM通常会额外分配内存。这些额外的分配，会导致java程序占用的内存，超出-Xmx的限制。此时可以通过NMT查看内存的使用情况<span id="more"></span></p>
+<h1 id="NMT-是什么"><a href="#NMT-是什么" class="headerlink" title="NMT 是什么"></a>NMT 是什么</h1><p>NMT 是一项 Java Hotspot 功能，用于跟踪 JVM Hotspot 内部内存的使用情况。NMT 不跟踪第三方 Native 代码和 Oracle Java Development Kit (JDK) 类库的内存分配。本文主要参考 Oracle 提供的<a href="#references">手册</a></p>
+<h1 id="主要特征"><a href="#主要特征" class="headerlink" title="主要特征"></a>主要特征</h1><p>Native Memory Tracking 与 jcmd 一起使用时，可以在不同级别下跟踪 Java 虚拟机 (JVM)内存使用情况。</p>
+<p>NMT 支持以下功能：</p>
+<ul>
+<li>运行程序运行时生成内存使用摘要或详细报告；</li>
+<li>在运行程序开始运行的早期建立基线，用于运行程序执行一段时间后比较内存变化；</li>
+<li>使用 JVM 命令行选项在 JVM 退出时打印内存使用报告。</li>
+</ul>
+<h1 id="NMT的使用"><a href="#NMT的使用" class="headerlink" title="NMT的使用"></a>NMT的使用</h1><p>JVM 的 NMT 默认关闭。通过 -XX:NativeMemoryTracking&#x3D;[off | summary | detail] 开启不同级别的监控</p>
+<ul>
+<li>summary 仅收集聚合的内存使用情况。</li>
+<li>detail  收集各个调用点的内存使用情况。</li>
+</ul>
+<p>注：根据 Oracle 给出的<a href="#references">故障排除指南</a>中所写 jdk8 在启用 NMT时 会导致 5% -10% 的性能开销。</p>
+<h2 id="使用-jcmd-访问-NMT-数据"><a href="#使用-jcmd-访问-NMT-数据" class="headerlink" title="使用 jcmd 访问 NMT 数据"></a>使用 jcmd 访问 NMT 数据</h2><p>通过 jcmd 可以转储记录的数据，并可选择将数据与上一个基线进行比较。</p>
+<p><strong>语法：</strong></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell">jcmd &lt;pid&gt; VM.native_memory [summary | detail | baseline | summary.diff | detail.diff | shutdown] [scale= KB | MB | GB]<br></code></pre></td></tr></table></figure>
+<p>参数说明：</p>
+<table>
+<thead>
+<tr>
+<th align="center">jcmd NMT 选项</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">summary</td>
+<td align="left">打印按类别汇总的摘要。</td>
+</tr>
+<tr>
+<td align="center">detail</td>
+<td align="left">打印内存使用情况，按类别汇总<br > 打印虚拟内存映射<br> 打印内存使用情况，按调用者汇总</td>
+</tr>
+<tr>
+<td align="center">baseline</td>
+<td align="left">创建一个新的内存使用快照作为基线，用于后续比较。</td>
+</tr>
+<tr>
+<td align="center">summary.diff</td>
+<td align="left">根据最后一个基线打印一份新的总结报告。</td>
+</tr>
+<tr>
+<td align="center">detail.diff</td>
+<td align="left">根据最后一个基线打印一份新的详细报告。</td>
+</tr>
+<tr>
+<td align="center">shutdown</td>
+<td align="left">停止 NMT。</td>
+</tr>
+</tbody></table>
+<h3 id="summary-级别输出示例如下："><a href="#summary-级别输出示例如下：" class="headerlink" title="summary 级别输出示例如下："></a>summary 级别输出示例如下：</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><code class="hljs text">Native Memory Tracking:<br><br>Total: reserved=3622524851, committed=910833587                                 &lt;--- total memory tracked by Native Memory Tracking<br>-                 Java Heap (reserved=2067791872, committed=745537536)          &lt;--- Java Heap<br>                            (mmap: reserved=2067791872, committed=745537536) <br> <br>-                     Class (reserved=1097799251, committed=26809939)           &lt;--- class metadata<br>                            (classes #3569)                                     &lt;--- number of loaded classes<br>                            (  instance classes #3297, array classes #272)<br>                            (malloc=988755 #9613)                               &lt;--- malloc&#x27;d memory, #number of malloc<br>                            (mmap: reserved=1096810496, committed=25821184) <br>                            (  Metadata:   )<br>                            (    reserved=23068672, committed=23068672)<br>                            (    used=21384400)<br>                            (    free=1684272)<br>                            (    waste=0 =0.00%)<br>                            (  Class space:)<br>                            (    reserved=1073741824, committed=2752512)<br>                            (    used=2270784)<br>                            (    free=481728)<br>                            (    waste=0 =0.00%)<br> <br>-                    Thread (reserved=29497864, committed=1387016)              <br>                            (thread #28)                                        &lt;--- number of threads<br>                            (stack: reserved=29360128, committed=1249280)       &lt;--- memory used by thread stacks<br>                            (malloc=106104 #170) <br>                            (arena=31632 #54)                                   &lt;--- resource and handle areas<br> <br>-                      Code (reserved=263208110, committed=21933230)<br>                            (malloc=9575598 #263692) <br>                            (mmap: reserved=253632512, committed=12357632) <br> <br>-                        GC (reserved=135893815, committed=86831927)<br>                            (malloc=25080631 #7158) <br>                            (mmap: reserved=110813184, committed=61751296) <br> <br>-                  Compiler (reserved=2007114, committed=2007114)<br>                            (malloc=32450 #303) <br>                            (arena=1974664 #11)<br> <br>-                  Internal (reserved=824541, committed=824541)<br>                            (malloc=791773 #1993) <br>                            (mmap: reserved=32768, committed=32768) <br> <br>-                     Other (reserved=135456, committed=135456)<br>                            (malloc=135456 #6) <br> <br>-                    Symbol (reserved=6324688, committed=6324688)<br>                            (malloc=3861456 #20058) <br>                            (arena=2463232 #1)<br> <br>-    Native Memory Tracking (reserved=4917896, committed=4917896)<br>                            (malloc=10744 #87) <br>                            (tracking overhead=4907152)<br> <br>-               Arena Chunk (reserved=13747712, committed=13747712)<br>                            (malloc=13747712) <br> <br>-                   Tracing (reserved=120, committed=120)<br>                            (malloc=120 #5) <br> <br>-                   Logging (reserved=6276, committed=6276)<br>                            (malloc=6276 #198) <br> <br>-                 Arguments (reserved=20264, committed=20264)<br>                            (malloc=20264 #515) <br> <br>-                    Module (reserved=184000, committed=184000)<br>                            (malloc=184000 #1246) <br> <br>-              Synchronizer (reserved=157680, committed=157680)<br>                            (malloc=157680 #1038) <br> <br>-                 Safepoint (reserved=8192, committed=8192)<br>                            (mmap: reserved=8192, committed=8192) <br></code></pre></td></tr></table></figure>
+
+<p>结果参数说明：（下表摘自<a href="#references"> Native Memory Tracking Memory Categories</a>）</p>
+<table>
+<thead>
+<tr>
+<th align="center">类别</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">Java Heap</td>
+<td align="left">对象所在的堆</td>
+</tr>
+<tr>
+<td align="center">Class</td>
+<td align="left">类元数据</td>
+</tr>
+<tr>
+<td align="center">Thread</td>
+<td align="left">线程使用的内存，包括线程数据结构、资源区、句柄区等</td>
+</tr>
+<tr>
+<td align="center">Code</td>
+<td align="left">生成的代码 JIT生成并缓存的汇编指令的内存占用情况</td>
+</tr>
+<tr>
+<td align="center">GC</td>
+<td align="left">GC使用的数据，例如卡片表，除了记忆集</td>
+</tr>
+<tr>
+<td align="center">GCCardset</td>
+<td align="left">GC 的记忆集使用的数据( 可选，仅限 G1)</td>
+</tr>
+<tr>
+<td align="center">Compiler</td>
+<td align="left">编译器在生成代码时使用的内存跟踪</td>
+</tr>
+<tr>
+<td align="center">Interna</td>
+<td align="left">不符合前面几类的内存，比如命令行解析器、JVMTI、属性等使用的内存</td>
+</tr>
+<tr>
+<td align="center">Other</td>
+<td align="left">其他类别未涵盖的内存</td>
+</tr>
+<tr>
+<td align="center">Symbol</td>
+<td align="left">符号占用的内存 如string table和constant pool</td>
+</tr>
+<tr>
+<td align="center">Native Memory Tracking</td>
+<td align="left">NMT 使用的内存</td>
+</tr>
+<tr>
+<td align="center">Arena Chunk</td>
+<td align="left">arena 块池中的块使用的内存 用于存放虚拟机的内部对象和数据的内存块池</td>
+</tr>
+<tr>
+<td align="center">Logging</td>
+<td align="left">记录使用的内存</td>
+</tr>
+<tr>
+<td align="center">Arguments</td>
+<td align="left">参数占用的内存</td>
+</tr>
+<tr>
+<td align="center">Module</td>
+<td align="left">模块使用的内存</td>
+</tr>
+<tr>
+<td align="center">Synchronizer</td>
+<td align="left">用于锁同步的内存</td>
+</tr>
+<tr>
+<td align="center">Safepoint</td>
+<td align="left">用于安全点的内存</td>
+</tr>
+</tbody></table>
+<p>NMT显示总的预留（reserved）内存、已提交（committed）内存：</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs routeros">Total: <span class="hljs-attribute">reserved</span>=3622524851, <span class="hljs-attribute">committed</span>=910833587<br></code></pre></td></tr></table></figure>
+<p>reserved 内存表示我们的应用程序可能使用的内存总量。committed 内存表示应用程序当前使用的内存。如果不显示单位默认为 B</p>
+<h3 id="detail级别的额外输出"><a href="#detail级别的额外输出" class="headerlink" title="detail级别的额外输出"></a>detail级别的额外输出</h3><p>detail 级别的 NMT 会精确地跟踪分配内存的方法，并统计出分配最多内存的方法，如下示例：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs text">Virtual memory map:<br><br>[0x00000000a1000000 - 0x0000000800000000] reserved 30916608KB for Java Heap from<br>    [0x00007f5b91a2472b] ReservedHeapSpace::try_reserve_heap(unsigned long, unsigned long, bool, char*)+0x20b<br>    [0x00007f5b91a24de9] ReservedHeapSpace::initialize_compressed_heap(unsigned long, unsigned long, bool)+0x5a9<br>    [0x00007f5b91a254c6] ReservedHeapSpace::ReservedHeapSpace(unsigned long, unsigned long, bool, char const*)+0x176<br>    [0x00007f5b919da835] Universe::reserve_heap(unsigned long, unsigned long)+0x65<br><br>               [0x00000000a1000000 - 0x0000000117000000] committed 1933312KB from<br>            [0x00007f5b9132c9be] G1PageBasedVirtualSpace::commit(unsigned long, unsigned long)+0x18e<br>            [0x00007f5b913414d1] G1RegionsLargerThanCommitSizeMapper::commit_regions(unsigned int, unsigned long, WorkGang*)+0x1a1<br>            [0x00007f5b913d5c78] HeapRegionManager::commit_regions(unsigned int, unsigned long, WorkGang*)+0x58<br>            [0x00007f5b913d6c45] HeapRegionManager::expand(unsigned int, unsigned int, WorkGang*)+0x35<br><br>               [0x00000007fe000000 - 0x00000007fef00000] committed 15360KB from<br>            [0x00007f5b9132c9be] G1PageBasedVirtualSpace::commit(unsigned long, unsigned long)+0x18e<br>            [0x00007f5b913414d1] G1RegionsLargerThanCommitSizeMapper::commit_regions(unsigned int, unsigned long, WorkGang*)+0x1a1<br>            [0x00007f5b913d5c78] HeapRegionManager::commit_regions(unsigned int, unsigned long, WorkGang*)+0x58<br>            [0x00007f5b913d7355] HeapRegionManager::expand_exact(unsigned int, unsigned int, WorkGang*)+0xd5<br><br></code></pre></td></tr></table></figure>
+
+<p>输出包括分配内存的区域以及申请内存区域的最大深度为 4 的方法栈。</p>
+<h2 id="在-VM-退出时获取-NMT-数据"><a href="#在-VM-退出时获取-NMT-数据" class="headerlink" title="在 VM 退出时获取 NMT 数据"></a>在 VM 退出时获取 NMT 数据</h2><p>要在 VM 退出时获取上次内存使用情况的数据，请在启用本机内存跟踪时使用以下 VM 诊断命令行选项。详细程度基于跟踪级别。</p>
+<p>-XX:+UnlockDiagnosticVMOptions -XX:+PrintNMTStatistics</p>
+<h1 id="使用-NMT-检测内存泄漏"><a href="#使用-NMT-检测内存泄漏" class="headerlink" title="使用 NMT 检测内存泄漏"></a>使用 NMT 检测内存泄漏</h1><p>使用 NMT 检测内存泄漏的过程步骤：</p>
+<p>使用命令行选项启动 JVM 并进行摘要或详细信息-XX:NativeMemoryTracking&#x3D;summary&#x2F;detail<br>建立早期基线。使用 NMT 基线功能通过运行以下命令在开发和维护期间获取要比较的基线：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell">jcmd &lt;pid&gt; VM.native_memory baseline.<br></code></pre></td></tr></table></figure>
+<p>运行程序执行一段时间后通过以下命令行监视内存更改：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs shell">jcmd &lt;pid&gt; VM.native_memory detail.diff。<br></code></pre></td></tr></table></figure>
+<p>如果应用程序泄漏少量内存，则可能需要一段时间才能显示出来。<br>NMT通过+ -符号，表示这段时间内，内存占用的变化情况：</p>
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><code class="hljs routeros">Native Memory Tracking:<br><br>Total: <span class="hljs-attribute">reserved</span>=1831059KB +359KB, <span class="hljs-attribute">committed</span>=146815KB +1383KB<br><br>-                 Java Heap (<span class="hljs-attribute">reserved</span>=442368KB, <span class="hljs-attribute">committed</span>=44060KB)<br>                            (mmap: <span class="hljs-attribute">reserved</span>=442368KB, <span class="hljs-attribute">committed</span>=44060KB)<br> <br>-                     Class (<span class="hljs-attribute">reserved</span>=1082518KB +38KB, <span class="hljs-attribute">committed</span>=37526KB +1062KB)<br>                            (classes #6372 +210)<br>                            (<span class="hljs-attribute">malloc</span>=1174KB +38KB #7083 +236)<br>                            (mmap: <span class="hljs-attribute">reserved</span>=1081344KB, <span class="hljs-attribute">committed</span>=36352KB +1024KB)<br> <br>-                    Thread (<span class="hljs-attribute">reserved</span>=29927KB, <span class="hljs-attribute">committed</span>=29927KB)<br>                            (thread #30)<br>                            (stack: <span class="hljs-attribute">reserved</span>=29792KB, <span class="hljs-attribute">committed</span>=29792KB)<br>                            (<span class="hljs-attribute">malloc</span>=102KB #174)<br>                            (<span class="hljs-attribute">arena</span>=32KB #56)<br> <br>-                      Code (<span class="hljs-attribute">reserved</span>=251480KB +34KB, <span class="hljs-attribute">committed</span>=11828KB +34KB)<br>                            (<span class="hljs-attribute">malloc</span>=1880KB +34KB #3409 +137)<br>                            (mmap: <span class="hljs-attribute">reserved</span>=249600KB, <span class="hljs-attribute">committed</span>=9948KB)<br> <br>-                        GC (<span class="hljs-attribute">reserved</span>=1473KB, <span class="hljs-attribute">committed</span>=181KB)<br>                            (<span class="hljs-attribute">malloc</span>=25KB #126)<br>                            (mmap: <span class="hljs-attribute">reserved</span>=1448KB, <span class="hljs-attribute">committed</span>=156KB)<br> <br>-                  Compiler (<span class="hljs-attribute">reserved</span>=161KB +10KB, <span class="hljs-attribute">committed</span>=161KB +10KB)<br>                            (<span class="hljs-attribute">malloc</span>=28KB +10KB #334 +26)<br>                            (<span class="hljs-attribute">arena</span>=133KB #5)<br> <br>-                  Internal (<span class="hljs-attribute">reserved</span>=11398KB +41KB, <span class="hljs-attribute">committed</span>=11398KB +41KB)<br>                            (<span class="hljs-attribute">malloc</span>=11366KB +41KB #7936 +212)<br>                            (mmap: <span class="hljs-attribute">reserved</span>=32KB, <span class="hljs-attribute">committed</span>=32KB)<br> <br>-                    Symbol (<span class="hljs-attribute">reserved</span>=10046KB +156KB, <span class="hljs-attribute">committed</span>=10046KB +156KB)<br>                            (<span class="hljs-attribute">malloc</span>=6969KB +156KB #62913 +1947)<br>                            (<span class="hljs-attribute">arena</span>=3077KB #1)<br> <br>-    Native Memory<span class="hljs-built_in"> Tracking </span>(<span class="hljs-attribute">reserved</span>=1511KB +81KB, <span class="hljs-attribute">committed</span>=1511KB +81KB)<br>                            (<span class="hljs-attribute">malloc</span>=187KB +33KB #2645 +469)<br>                            (tracking <span class="hljs-attribute">overhead</span>=1325KB +47KB)<br> <br>-               Arena Chunk (<span class="hljs-attribute">reserved</span>=177KB, <span class="hljs-attribute">committed</span>=177KB)<br>                            (<span class="hljs-attribute">malloc</span>=177KB)<br></code></pre></td></tr></table></figure>
+
+<p>如果是 detail 级别的基线对比可以看到如下示例：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><code class="hljs text">[0x00007f5b9175ea8b] MemBaseline::aggregate_virtual_memory_allocation_sites()+0x11b<br>[0x00007f5b9175ed68] MemBaseline::baseline_allocation_sites()+0x188<br>[0x00007f5b9175efff] MemBaseline::baseline(bool)+0x1cf<br>[0x00007f5b917d19a4] NMTDCmd::execute(DCmdSource, Thread*)+0x2b4<br>                             (malloc=1KB type=Native Memory Tracking +1KB #18 +18)<br><br>[0x00007f5b917635b0] MallocAllocationSiteWalker::do_malloc_site(MallocSite const*)+0x40<br>[0x00007f5b91740bc8] MallocSiteTable::walk_malloc_site(MallocSiteWalker*)+0x78<br>[0x00007f5b9175ec32] MemBaseline::baseline_allocation_sites()+0x52<br>[0x00007f5b9175efff] MemBaseline::baseline(bool)+0x1cf<br>                             (malloc=11KB type=Native Memory Tracking +10KB #156 +136)<br><br>[0x00007f5b91a2472b] ReservedHeapSpace::try_reserve_heap(unsigned long, unsigned long, bool, char*)+0x20b<br>[0x00007f5b91a24de9] ReservedHeapSpace::initialize_compressed_heap(unsigned long, unsigned long, bool)+0x5a9<br>[0x00007f5b91a254c6] ReservedHeapSpace::ReservedHeapSpace(unsigned long, unsigned long, bool, char const*)+0x176<br>[0x00007f5b919da835] Universe::reserve_heap(unsigned long, unsigned long)+0x65<br>                             (mmap: reserved=30916608KB, committed=475136KB +81920KB Type=Java Heap)<br><br>[0x00007f5b91804557] thread_native_entry(Thread*)+0xe7<br>                             (mmap: reserved=34868KB, committed=1224KB +68KB Type=Thread Stack)<br><br>[0x00007f5b91a23c63] ReservedSpace::ReservedSpace(unsigned long, unsigned long)+0x213<br>[0x00007f5b912df57c] G1CollectedHeap::create_aux_memory_mapper(char const*, unsigned long, unsigned long)+0x3c<br>[0x00007f5b912e4f13] G1CollectedHeap::initialize()+0x333<br>[0x00007f5b919da5dd] universe_init()+0xbd<br>                             (mmap: reserved=483072KB, committed=7424KB +1280KB Type=GC)<br><br>[0x00007f5b91a23c63] ReservedSpace::ReservedSpace(unsigned long, unsigned long)+0x213<br>[0x00007f5b912df57c] G1CollectedHeap::create_aux_memory_mapper(char const*, unsigned long, unsigned long)+0x3c<br>[0x00007f5b912e4e6a] G1CollectedHeap::initialize()+0x28a<br>[0x00007f5b919da5dd] universe_init()+0xbd<br>                             (mmap: reserved=60384KB, committed=928KB +160KB Type=GC)<br></code></pre></td></tr></table></figure>
+
+<p>可以看出与基线时刻对比，Java Heap 类型新 committed 的内存大小为 475136KB ，是最多的新增部分。<br>通过 NMT 实现内存泄漏的纠错，可以结合内存监控手段 pmap 确定是 JVM 带来的内存使用量增长还是 JNI 带来的内存使用量增长。如果是 JVM 带来的内存使用量增长，再确定是哪一部份的内存使用量涨了。</p>
+<p id="references"></p>   
+
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p>[Java Platform, Standard Edition Troubleshooting Guide——2.7 Native Memory Tracking]<a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html">https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr007.html</a><br>[Native Memory Tracking]<a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/vm/nmt-8.html">https://docs.oracle.com/javase/8/docs/technotes/guides/vm/nmt-8.html</a><br>[Native Memory Tracking Memory Categories]<a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr022.html#BABHIFJC">https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/tooldescr022.html#BABHIFJC</a><br>[Troubleshooting Guide]<a target="_blank" rel="noopener" href="https://docs.oracle.com/en/java/javase/20/troubleshoot/diagnostic-tools.html#GUID-FB0581EA-2F91-4093-B2FA-46687F7AB081">https://docs.oracle.com/en/java/javase/20/troubleshoot/diagnostic-tools.html#GUID-FB0581EA-2F91-4093-B2FA-46687F7AB081</a><br>[Java Virtual Machine Guide——9 Native Memory Tracking]<a target="_blank" rel="noopener" href="https://docs.oracle.com/en/java/javase/20/vm/native-memory-tracking.html#GUID-710CAEA1-7C6D-4D80-AB0C-B0958E329407">https://docs.oracle.com/en/java/javase/20/vm/native-memory-tracking.html#GUID-710CAEA1-7C6D-4D80-AB0C-B0958E329407</a></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/Hotspot/">#Hotspot</a>
+      
+        <a href="/tags/Java/">#Java</a>
+      
+        <a href="/tags/NMT/">#NMT</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>nmt功能简析</div>
+      <div>https://treercai.github.io/2023/07/12/nmt功能简析/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>Author</div>
+          <div>Treer Cai</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>Posted on</div>
+          <div>July 12, 2023</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>Licensed under</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - Attribution">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2023/06/16/JVM%E6%A0%88%E4%B8%8E%E5%8F%8D%E6%A0%88/" title="JVM栈与反栈">
+                        <span class="hidden-mobile">JVM栈与反栈</span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#comments', function() {
+      var light = 'github-light';
+      var dark = 'github-dark';
+      var schema = document.documentElement.getAttribute('data-user-color-scheme');
+      if (schema === 'dark') {
+        schema = dark;
+      } else {
+        schema = light;
+      }
+      window.UtterancesThemeLight = light;
+      window.UtterancesThemeDark = dark;
+      var s = document.createElement('script');
+      s.setAttribute('src', 'https://utteranc.es/client.js');
+      s.setAttribute('repo', 'TreerCai/comment-data');
+      s.setAttribute('issue-term', 'pathname');
+      
+      s.setAttribute('label', 'utterances');
+      
+      s.setAttribute('theme', schema);
+      s.setAttribute('crossorigin', 'anonymous');
+      document.getElementById('comments').appendChild(s);
+    })
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;Table of Contents</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://treercai.github.io/" target="_blank" rel="nofollow noopener"><span>TreerCai&lsquo;s Blog</span></a> <i class="iconfont icon-love"></i> <div> There is no end to learning. </div> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="busuanzi_container_site_pv" style="display: none">
+        Views: 
+        <span id="busuanzi_value_site_pv"></span>
+        
+      </span>
+    
+    
+      <span id="busuanzi_container_site_uv" style="display: none">
+        Visitors: 
+        <span id="busuanzi_value_site_uv"></span>
+        
+      </span>
+    
+    
+  
+</div>
+
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>
