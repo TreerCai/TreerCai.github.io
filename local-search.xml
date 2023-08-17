@@ -4,6 +4,29 @@
   
   
   <entry>
+    <title>基于JFR定位G1性能瓶颈</title>
+    <link href="/2023/07/14/%E5%9F%BA%E4%BA%8EJFR%E5%AE%9A%E4%BD%8DG1%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88/"/>
+    <url>/2023/07/14/%E5%9F%BA%E4%BA%8EJFR%E5%AE%9A%E4%BD%8DG1%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88/</url>
+    
+    <content type="html"><![CDATA[]]></content>
+    
+    
+    
+    <tags>
+      
+      <tag>Hotspot</tag>
+      
+      <tag>Java</tag>
+      
+      <tag>G1</tag>
+      
+    </tags>
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>nmt功能简析</title>
     <link href="/2023/07/12/nmt%E5%8A%9F%E8%83%BD%E7%AE%80%E6%9E%90/"/>
     <url>/2023/07/12/nmt%E5%8A%9F%E8%83%BD%E7%AE%80%E6%9E%90/</url>
