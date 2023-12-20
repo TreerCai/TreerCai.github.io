@@ -31,6 +31,51 @@ JFR 与其他类似工具对比，JFR具有以下关键特点：
     - 在出现问题时转储记录数据，并查看问题发生之前、放生时和发生之后的运行时在做什么
     - 即使在 JVM 进程崩溃时，过去几分钟的飞行记录数据也会在转储中以便解决问题
 
+# 开启 JFR 记录
+
+利用 JFR 监控应用程序的启动方式分为三种，分别是`通过 JVM 启动参数启动`、`通过 jcmd 命令启动`、``
+
+## 通过 JVM 启动参数启动
+
+启动JFR涉及的参数仅仅只有两个，一个负责启动，一个用于配置。JDK 8 中需要额外通过FlightRecorder 打开 FlightRecorder 状态位在 JDK 11 之后不再需要了，这里本文通过下面例子展示：
+
+```bash
+java -XX:+FlightRecorder \
+     -XX:StartFlightRecording=name=myrecording,filename=recording.jfr,settings=profile \
+     test.Main
+```
+
+这条命令表示 启动应用程序同时启动一个名为 myrecording 的文件记录，dump 文件名为 recording.jfr 配置文件为 profile.jmc
+
+核心就是 -XX:StartFlightRecording，关于参数配置可以参考博客
+[《深度探索JFR - JFR详细介绍与生产问题定位落地 - 1. JFR说明与启动配置》](https://zhanghaoxin.blog.csdn.net/article/details/105241064)
+
+## 通过 jcmd 命令启动
+
+jcmd 命令相关的参数与 JVM 参数涉及的配置参数原理一致，还是通过例子简单展示如何开启如下
+
+### 1. jcmd <pid> JFR.start
+启动 JFR 记录，参数和 -XX:StartFlightRecording 一致，注意通过空格分割参数
+
+示例：
+```bash
+jcmd xxx JFR.start name=myrecording filename=recording.jfr
+```
+这个就代表启动一个名称为 myrecording文件记录 xxx 为进程号
+
+### 2. jcmd <pid> JFR.stop
+停止 JFR 记录，需要传入名称，例如如果要停止上面打开的，则执行：
+```bash
+jcmd xxx JFR.stop name=profile_online
+```
+xxx 为进程号
+
+其他 jcmd 功能命令可以参考博客 
+[《深度探索JFR - JFR详细介绍与生产问题定位落地 - 1. JFR说明与启动配置》](https://zhanghaoxin.blog.csdn.net/article/details/105241064)
+
+
+JRF 的记录文件为 *.jfr 格式，通过 JMC 打开 JFR 能够获取记录的详细信息。
+
 # JFR 基本原理
 
 ## JFR 的生命周期
